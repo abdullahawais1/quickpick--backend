@@ -6,6 +6,8 @@ import {
   updateStudentPickupPerson,
   deleteStudentPickupPerson,
 } from '../controllers/studentPickupPerson.controller';
+import authMiddleware from '../middleware/authMiddleware';
+
 
 const router = express.Router();
 

@@ -7,7 +7,7 @@ import cors from 'cors';
 import errorHandler from './middleware/errorHandler';
 
 import vehicleRoutes from './routes/vehicle.routes';
-import authRoutes from './routes/auth.routes';
+import authRoutes from './routes/auth.routes'; 
 import studentRoutes from './routes/student.routes';
 import attendanceRoutes from './routes/attendance.routes';
 import pickupPersonRoutes from './routes/pickupPerson.routes';
@@ -15,6 +15,7 @@ import pickupScheduleRoutes from './routes/pickupSchedule.routes';
 import exceptionPickupRoutes from './routes/exceptionPickup.routes';
 import schoolRoutes from './routes/school.routes';
 import studentPickupPersonRoutes from './routes/studentPickupPerson.routes';
+import userAuthRoutes from './routes/appRoutes'; 
 
 // Load environment variables from .env file
 dotenv.config();
@@ -31,7 +32,8 @@ app.use(cors());
 connectDB();
 
 app.use('/vehicles', vehicleRoutes);
-app.use('/auth', authRoutes);
+app.use('/auth', authRoutes);  // backend ui
+app.use('/auth/user', userAuthRoutes); // mobile app
 app.use('/students', studentRoutes);
 app.use('/attendances', attendanceRoutes);
 app.use('/pickup-persons', pickupPersonRoutes);
@@ -40,8 +42,6 @@ app.use('/exception-pickups', exceptionPickupRoutes);
 app.use('/schools', schoolRoutes);
 app.use('/student-pickup-persons', studentPickupPersonRoutes);
 
-
-
 // Root route
 app.get('/', (req: Request, res: Response) => {
   res.send('Welcome to the School Management API!');
@@ -49,14 +49,6 @@ app.get('/', (req: Request, res: Response) => {
 
 // Error handling middleware
 app.use(errorHandler);
-
-
-// Auth routes
-app.use('/auth', authRoutes);
-// Example: POST /auth/signup, POST /auth/login
-
-// Other existing routes, e.g.:
-app.use('/students', studentRoutes);
 
 // Start the server
 const PORT = process.env.PORT || 5000;

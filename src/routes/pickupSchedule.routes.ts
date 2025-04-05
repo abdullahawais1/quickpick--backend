@@ -6,6 +6,8 @@ import {
   updatePickupSchedule,
   deletePickupSchedule,
 } from '../controllers/pickupSchedule.controller';
+import authMiddleware from '../middleware/authMiddleware';
+
 
 const router = express.Router();
 

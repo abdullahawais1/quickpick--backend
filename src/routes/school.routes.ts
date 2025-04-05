@@ -6,6 +6,8 @@ import {
   updateSchool,
   deleteSchool,
 } from '../controllers/school.controller';
+import authMiddleware from '../middleware/authMiddleware';
+
 
 const router = express.Router();
 

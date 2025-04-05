@@ -6,6 +6,8 @@ import {
   updateExceptionPickup,
   deleteExceptionPickup,
 } from '../controllers/exceptionPickup.controller';
+import authMiddleware from '../middleware/authMiddleware';
+
 
 const router = express.Router();
 

@@ -1,18 +1,21 @@
-import express from 'express';
+import express from 'express'; 
 import {
   getAllPickupPersons,
   createPickupPerson,
   getPickupPersonById,
   updatePickupPerson,
   deletePickupPerson,
+  clearStudents
 } from '../controllers/pickupPerson.controller';
+import authMiddleware from '../middleware/authMiddleware';
 
 const router = express.Router();
 
-router.get('/', getAllPickupPersons);
-router.post('/', createPickupPerson);
-router.get('/:id', getPickupPersonById);
-router.put('/:id', updatePickupPerson);
-router.delete('/:id', deletePickupPerson);
+router.patch("/:id/clear-students", clearStudents);
+router.get('/', authMiddleware, getAllPickupPersons);
+router.post('/', authMiddleware, createPickupPerson);
+router.get('/:id', authMiddleware, getPickupPersonById);
+router.put('/:id', authMiddleware, updatePickupPerson);
+router.delete('/:id', authMiddleware, deletePickupPerson);
 
 export default router;

@@ -6,6 +6,8 @@ import {
   updateAttendance,
   deleteAttendance,
 } from '../controllers/attendance.controller';
+import authMiddleware from '../middleware/authMiddleware';
+
 
 const router = express.Router();
 
