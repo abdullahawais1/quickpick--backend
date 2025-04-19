@@ -14,7 +14,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getChildren = exports.login = exports.signup = void 0;
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
-const bcrypt_1 = __importDefault(require("bcrypt"));
+const bcryptjs_1 = __importDefault(require("bcryptjs")); // Changed from bcrypt to bcryptjs
 const asyncHandler_1 = __importDefault(require("../utils/asyncHandler"));
 const pickupPerson_1 = __importDefault(require("../models/pickupPerson"));
 const appuser_1 = __importDefault(require("../models/appuser"));
@@ -33,7 +33,9 @@ exports.signup = (0, asyncHandler_1.default)((req, res) => __awaiter(void 0, voi
         res.status(404).json({ message: 'Pickup person not found' });
         return;
     }
-    const newUser = new appuser_1.default({ name, email, phone_number, cnic, password });
+    // Hash the password using bcryptjs
+    const hashedPassword = yield bcryptjs_1.default.hash(password, 10);
+    const newUser = new appuser_1.default({ name, email, phone_number, cnic, password: hashedPassword });
     yield newUser.save();
     res.status(201).json({ message: 'User registered successfully' });
 }));
@@ -45,7 +47,8 @@ exports.login = (0, asyncHandler_1.default)((req, res) => __awaiter(void 0, void
         res.status(401).json({ message: 'Invalid email or password' });
         return;
     }
-    const isMatch = yield bcrypt_1.default.compare(password, user.password);
+    // Compare password using bcryptjs
+    const isMatch = yield bcryptjs_1.default.compare(password, user.password);
     if (!isMatch) {
         res.status(401).json({ message: 'Invalid email or password' });
         return;

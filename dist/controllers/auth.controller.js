@@ -13,7 +13,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.login = exports.signup = void 0;
-const bcrypt_1 = __importDefault(require("bcrypt"));
+const bcryptjs_1 = __importDefault(require("bcryptjs")); // Changed from bcrypt to bcryptjs
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const user_1 = __importDefault(require("../models/user"));
 const asyncHandler_1 = __importDefault(require("../utils/asyncHandler"));
@@ -29,9 +29,9 @@ exports.signup = (0, asyncHandler_1.default)((req, res) => __awaiter(void 0, voi
     if (existingUser) {
         throw { statusCode: 409, message: 'Username is already taken.' };
     }
-    // 3. Hash the password
+    // 3. Hash the password using bcryptjs
     const saltRounds = 10;
-    const hashedPassword = yield bcrypt_1.default.hash(password, saltRounds);
+    const hashedPassword = yield bcryptjs_1.default.hash(password, saltRounds); // bcryptjs.hash() works similarly to bcrypt.hash()
     // 4. Create the user
     const newUser = new user_1.default({
         username,
@@ -59,8 +59,8 @@ exports.login = (0, asyncHandler_1.default)((req, res) => __awaiter(void 0, void
     if (!user) {
         throw { statusCode: 401, message: 'Invalid username or password.' };
     }
-    // 3. Compare passwords
-    const isMatch = yield bcrypt_1.default.compare(password, user.password);
+    // 3. Compare passwords using bcryptjs
+    const isMatch = yield bcryptjs_1.default.compare(password, user.password); // bcryptjs.compare() works similarly to bcrypt.compare()
     if (!isMatch) {
         throw { statusCode: 401, message: 'Invalid username or password.' };
     }
