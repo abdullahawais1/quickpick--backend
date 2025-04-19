@@ -36,7 +36,10 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const mongoose_1 = __importStar(require("mongoose"));
 const AttendanceSchema = new mongoose_1.Schema({
     date: { type: Date, required: true },
-    student_id: { type: mongoose_1.default.Schema.Types.ObjectId, ref: 'Student', required: true },
+    student_id: { type: Number, required: true, ref: "Student" }, // Indirect reference
     status: { type: Boolean, required: true },
-});
-exports.default = mongoose_1.default.model('Attendance', AttendanceSchema);
+}, { timestamps: true } // Adds createdAt and updatedAt fields
+);
+// ✅ Ensure student_id has an index for faster lookups
+AttendanceSchema.index({ student_id: 1 });
+exports.default = mongoose_1.default.model("Attendance", AttendanceSchema);

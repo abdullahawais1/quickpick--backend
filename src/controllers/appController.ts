@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';  // Changed from bcrypt to bcryptjs
 import asyncHandler from '../utils/asyncHandler';
 import PickupPerson from '../models/pickupPerson';
 import appUser from '../models/appuser';
@@ -26,7 +26,10 @@ export const signup = asyncHandler(async (req: Request, res: Response): Promise<
     return;
   }
 
-  const newUser = new appUser({ name, email, phone_number, cnic, password });
+  // Hash the password using bcryptjs
+  const hashedPassword = await bcrypt.hash(password, 10);
+
+  const newUser = new appUser({ name, email, phone_number, cnic, password: hashedPassword });
   await newUser.save();
 
   res.status(201).json({ message: 'User registered successfully' });
@@ -43,6 +46,7 @@ export const login = asyncHandler(async (req: Request, res: Response): Promise<v
     return;
   }
 
+  // Compare password using bcryptjs
   const isMatch = await bcrypt.compare(password, user.password);
   if (!isMatch) {
     res.status(401).json({ message: 'Invalid email or password' });

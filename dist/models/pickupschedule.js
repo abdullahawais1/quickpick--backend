@@ -35,10 +35,11 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 const mongoose_1 = __importStar(require("mongoose"));
 const PickupScheduleSchema = new mongoose_1.Schema({
-    student_id: { type: mongoose_1.default.Schema.Types.ObjectId, ref: 'Student', required: true },
+    student_id: { type: Number, required: true, ref: "Student" }, // Using Number as a reference
     scheduled_pickup_time: { type: Date, required: true },
     actual_pickup_time: { type: Date, required: true },
     half_day: { type: Date, required: true },
     full_day: { type: Date, required: true },
-});
-exports.default = mongoose_1.default.model('PickupSchedule', PickupScheduleSchema);
+}, { timestamps: true } // Adds createdAt and updatedAt fields
+);
+exports.default = mongoose_1.default.model("PickupSchedule", PickupScheduleSchema);

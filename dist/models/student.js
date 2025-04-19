@@ -35,8 +35,25 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 const mongoose_1 = __importStar(require("mongoose"));
 const StudentSchema = new mongoose_1.Schema({
+    id: { type: Number, unique: true, required: true },
     name: { type: String, required: true },
     grade: { type: String, required: true },
     section: { type: String, required: true },
+    pickup_person: [{ type: Number, ref: "PickupPerson", required: true }],
 });
-exports.default = mongoose_1.default.model('Student', StudentSchema);
+// Pre-save hook to set _id to the custom id
+StudentSchema.pre("save", function (next) {
+    if (this.isNew) {
+        this._id = this.id; // Set _id to the custom id
+    }
+    next();
+});
+StudentSchema.set("toJSON", {
+    transform: (_doc, ret) => {
+        ret.id = ret.id;
+        delete ret._id;
+        delete ret.__v;
+        return ret;
+    },
+});
+exports.default = mongoose_1.default.model("Student", StudentSchema);

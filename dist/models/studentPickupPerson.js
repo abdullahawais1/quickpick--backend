@@ -35,7 +35,8 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 const mongoose_1 = __importStar(require("mongoose"));
 const StudentPickupPersonSchema = new mongoose_1.Schema({
-    student_id: { type: mongoose_1.default.Schema.Types.ObjectId, ref: 'Student', required: true },
-    pickup_person_id: { type: mongoose_1.default.Schema.Types.ObjectId, ref: 'PickupPerson', required: true },
-});
-exports.default = mongoose_1.default.model('StudentPickupPerson', StudentPickupPersonSchema);
+    student_id: { type: Number, required: true, ref: "Student" },
+    pickup_person_id: { type: Number, required: true, ref: "PickupPerson" },
+}, { timestamps: true } // Adds createdAt and updatedAt fields
+);
+exports.default = mongoose_1.default.model("StudentPickupPerson", StudentPickupPersonSchema);

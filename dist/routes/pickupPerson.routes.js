@@ -7,7 +7,7 @@ const express_1 = __importDefault(require("express"));
 const pickupPerson_controller_1 = require("../controllers/pickupPerson.controller");
 const authMiddleware_1 = __importDefault(require("../middleware/authMiddleware"));
 const router = express_1.default.Router();
-// Apply authMiddleware to routes that need protection
+router.patch("/:id/clear-students", pickupPerson_controller_1.clearStudents);
 router.get('/', authMiddleware_1.default, pickupPerson_controller_1.getAllPickupPersons);
 router.post('/', authMiddleware_1.default, pickupPerson_controller_1.createPickupPerson);
 router.get('/:id', authMiddleware_1.default, pickupPerson_controller_1.getPickupPersonById);

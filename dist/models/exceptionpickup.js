@@ -35,8 +35,8 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 const mongoose_1 = __importStar(require("mongoose"));
 const ExceptionPickupSchema = new mongoose_1.Schema({
-    pickup_person_id: { type: mongoose_1.default.Schema.Types.ObjectId, ref: 'PickupPerson', required: true },
-    student_id: { type: mongoose_1.default.Schema.Types.ObjectId, ref: 'Student', required: true },
+    pickup_person_id: { type: Number, required: true, ref: "PickupPerson" }, // Reference as a number
+    student_id: { type: Number, required: true, ref: "Student" }, // Reference as a number
     scheduled_pickup_time: { type: Date, required: true },
 });
-exports.default = mongoose_1.default.model('ExceptionPickup', ExceptionPickupSchema);
+exports.default = mongoose_1.default.model("ExceptionPickup", ExceptionPickupSchema);

@@ -19,7 +19,7 @@ const pickupSchedule_routes_1 = __importDefault(require("./routes/pickupSchedule
 const exceptionPickup_routes_1 = __importDefault(require("./routes/exceptionPickup.routes"));
 const school_routes_1 = __importDefault(require("./routes/school.routes"));
 const studentPickupPerson_routes_1 = __importDefault(require("./routes/studentPickupPerson.routes"));
-const userAuthRoutes_1 = __importDefault(require("./routes/userAuthRoutes"))
+const appRoutes_1 = __importDefault(require("./routes/appRoutes"));
 // Load environment variables from .env file
 dotenv_1.default.config();
 // Initialize Express
@@ -31,7 +31,8 @@ app.use((0, cors_1.default)());
 // Connect to MongoDB
 (0, db_1.default)();
 app.use('/vehicles', vehicle_routes_1.default);
-app.use('/auth', auth_routes_1.default);
+app.use('/auth', auth_routes_1.default); // backend ui
+app.use('/auth/user', appRoutes_1.default); // mobile app
 app.use('/students', student_routes_1.default);
 app.use('/attendances', attendance_routes_1.default);
 app.use('/pickup-persons', pickupPerson_routes_1.default);
@@ -39,18 +40,12 @@ app.use('/pickup-schedules', pickupSchedule_routes_1.default);
 app.use('/exception-pickups', exceptionPickup_routes_1.default);
 app.use('/schools', school_routes_1.default);
 app.use('/student-pickup-persons', studentPickupPerson_routes_1.default);
-app.use('/auth/user', userAuthRoutes_1.default);
 // Root route
 app.get('/', (req, res) => {
     res.send('Welcome to the School Management API!');
 });
 // Error handling middleware
 app.use(errorHandler_1.default);
-// Auth routes
-app.use('/auth', auth_routes_1.default);
-// Example: POST /auth/signup, POST /auth/login
-// Other existing routes, e.g.:
-app.use('/students', student_routes_1.default);
 // Start the server
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {

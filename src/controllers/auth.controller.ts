@@ -1,9 +1,8 @@
 import { Request, Response } from 'express';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';  // Changed from bcrypt to bcryptjs
 import jwt from 'jsonwebtoken';
 import User from '../models/user';
 import asyncHandler from '../utils/asyncHandler';
-
 
 const JWT_SECRET = process.env.JWT_SECRET || 'fallbackSecret';
 
@@ -21,9 +20,9 @@ export const signup = asyncHandler(async (req: Request, res: Response) => {
     throw { statusCode: 409, message: 'Username is already taken.' };
   }
 
-  // 3. Hash the password
+  // 3. Hash the password using bcryptjs
   const saltRounds = 10;
-  const hashedPassword = await bcrypt.hash(password, saltRounds);
+  const hashedPassword = await bcrypt.hash(password, saltRounds);  // bcryptjs.hash() works similarly to bcrypt.hash()
 
   // 4. Create the user
   const newUser = new User({
@@ -58,8 +57,8 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
     throw { statusCode: 401, message: 'Invalid username or password.' };
   }
 
-  // 3. Compare passwords
-  const isMatch = await bcrypt.compare(password, user.password);
+  // 3. Compare passwords using bcryptjs
+  const isMatch = await bcrypt.compare(password, user.password);  // bcryptjs.compare() works similarly to bcrypt.compare()
   if (!isMatch) {
     throw { statusCode: 401, message: 'Invalid username or password.' };
   }
