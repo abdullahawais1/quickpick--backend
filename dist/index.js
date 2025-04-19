@@ -19,6 +19,7 @@ const pickupSchedule_routes_1 = __importDefault(require("./routes/pickupSchedule
 const exceptionPickup_routes_1 = __importDefault(require("./routes/exceptionPickup.routes"));
 const school_routes_1 = __importDefault(require("./routes/school.routes"));
 const studentPickupPerson_routes_1 = __importDefault(require("./routes/studentPickupPerson.routes"));
+const userAuthRoutes_1 = __importDefault(require("./routes/userAuthRoutes"))
 // Load environment variables from .env file
 dotenv_1.default.config();
 // Initialize Express
@@ -38,6 +39,7 @@ app.use('/pickup-schedules', pickupSchedule_routes_1.default);
 app.use('/exception-pickups', exceptionPickup_routes_1.default);
 app.use('/schools', school_routes_1.default);
 app.use('/student-pickup-persons', studentPickupPerson_routes_1.default);
+app.use('/auth/user', userAuthRoutes_1.default);
 // Root route
 app.get('/', (req, res) => {
     res.send('Welcome to the School Management API!');
