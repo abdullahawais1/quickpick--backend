@@ -1,6 +1,5 @@
-import { Request, Response, NextFunction } from 'express';
+import { Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
-import bcrypt from 'bcryptjs';  // Changed from bcrypt to bcryptjs
 import asyncHandler from '../utils/asyncHandler';
 import PickupPerson from '../models/pickupPerson';
 import appUser from '../models/appuser';
@@ -26,10 +25,8 @@ export const signup = asyncHandler(async (req: Request, res: Response): Promise<
     return;
   }
 
-  // Hash the password using bcryptjs
-  const hashedPassword = await bcrypt.hash(password, 10);
-
-  const newUser = new appUser({ name, email, phone_number, cnic, password: hashedPassword });
+  // Let the model hash the password (don't hash here)
+  const newUser = new appUser({ name, email, phone_number, cnic, password });
   await newUser.save();
 
   res.status(201).json({ message: 'User registered successfully' });
@@ -46,14 +43,12 @@ export const login = asyncHandler(async (req: Request, res: Response): Promise<v
     return;
   }
 
-  // Compare password using bcryptjs
-  const isMatch = await bcrypt.compare(password, user.password);
+  const isMatch = await user.comparePassword(password);
   if (!isMatch) {
     res.status(401).json({ message: 'Invalid email or password' });
     return;
   }
 
-  // Token includes userId and email for identification
   const token = jwt.sign({ userId: user._id, email: user.email }, JWT_SECRET, {
     expiresIn: '7d',
   });
@@ -61,7 +56,7 @@ export const login = asyncHandler(async (req: Request, res: Response): Promise<v
   res.json({ token });
 });
 
-// ✅ Get Children of the Logged-in User (Pickup Person)
+// ✅ Get Children of the Logged-in User
 export const getChildren = asyncHandler(async (req: Request, res: Response): Promise<void> => {
   const user = req.user; // Comes from JWT middleware
 
@@ -70,7 +65,6 @@ export const getChildren = asyncHandler(async (req: Request, res: Response): Pro
     return;
   }
 
-  // Find the pickup person using the user's email
   const pickupPerson = await PickupPerson.findOne({ email: user.email });
 
   if (!pickupPerson) {
@@ -78,7 +72,6 @@ export const getChildren = asyncHandler(async (req: Request, res: Response): Pro
     return;
   }
 
-  // Fetch students associated with the pickup person by `pickup_person` array
   const students = await Student.find({ pickup_person: pickupPerson.id }).select('id name grade section');
 
   res.status(200).json({ children: students });

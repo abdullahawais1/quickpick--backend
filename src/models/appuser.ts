@@ -16,7 +16,7 @@ const appUserSchema: Schema = new Schema(
     email: { type: String, unique: true, required: true },
     phone_number: { type: String, required: true },
     cnic: { type: Number, unique: true, required: true },
-    password: { type: String, required: true, minlength: 6 },
+    password: { type: String, required: true, minlength: 6, select: false }, // <- important!
   },
   { timestamps: true }
 );
