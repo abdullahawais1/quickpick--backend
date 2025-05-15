@@ -18,31 +18,26 @@ import studentPickupPersonRoutes from './routes/studentPickupPerson.routes';
 import userAuthRoutes from './routes/appRoutes'; 
 import queueRoutes from './routes/queueRoutes';
 import { initializeSocketIO } from "./socket";
-import { Server } from "socket.io";
 
 // Load environment variables from .env file
 dotenv.config();
 
-
 // Initialize Express
 const app: Application = express();
+const server = http.createServer(app); // ✅ Create HTTP server
 
-const server = http.createServer(app); // Create an HTTP server from Express app
+// Connect to MongoDB
+connectDB();
 
-// Initialize Socket.IO events
-initializeSocketIO(server);
-
-
+// Middleware
 app.use(express.json());
 app.use(morgan('dev'));
 app.use(helmet());
 app.use(cors());
 
-// Connect to MongoDB
-connectDB();
-
+// Routes
 app.use('/vehicles', vehicleRoutes);
-app.use('/auth', authRoutes);  // backend ui
+app.use('/auth', authRoutes);  // backend UI
 app.use('/auth/user', userAuthRoutes); // mobile app
 app.use('/students', studentRoutes);
 app.use('/attendances', attendanceRoutes);
@@ -61,8 +56,11 @@ app.get('/', (req: Request, res: Response) => {
 // Error handling middleware
 app.use(errorHandler);
 
-// Start the server
+// ✅ Initialize Socket.IO AFTER all setup
+initializeSocketIO(server);
+
+// ✅ Start the server (this is key!)
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+server.listen(PORT, () => {
+  console.log(`Server running with WebSockets on port ${PORT}`);
 });
