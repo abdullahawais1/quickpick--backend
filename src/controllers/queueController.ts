@@ -36,7 +36,7 @@ export const autoJoinQueue = async (req: Request, res: Response): Promise<void> 
       return;
     }
 
-    const pickupPerson = await PickupPerson.findOne({ email: user.email }).select("id name email");
+    const pickupPerson = await PickupPerson.findOne({ email: user.email }).select("id name");
     if (!pickupPerson) {
       res.status(404).json({ message: "Pickup person not found" });
       return;
@@ -63,7 +63,7 @@ export const autoJoinQueue = async (req: Request, res: Response): Promise<void> 
     }
 
     const lastEntry = queue[queue.length - 1];
-    const lastPickupPerson = await PickupPerson.findOne({ id: lastEntry.pickupPersonId });
+    const lastPickupPerson = await PickupPerson.findOne({ id: lastEntry.pickupPersonId }).select("id name");
     if (!lastPickupPerson) {
       res.status(500).json({ message: "Last pickup person not found." });
       return;
@@ -151,10 +151,9 @@ export const getQueueWithStudents = async (req: Request, res: Response): Promise
     const queue = await QueueEntry.find().sort({ queueNumber: 1 });
 
     const detailedQueue = await Promise.all(queue.map(async (entry) => {
-      const pickupPerson = await PickupPerson.findOne({ id: entry.pickupPersonId });
+      const pickupPerson = await PickupPerson.findOne({ id: entry.pickupPersonId }).select("id name");
       if (!pickupPerson) return null;
 
-      // Select only needed student fields
       const students = await Student.find({ pickup_person: pickupPerson.id }).select('id name grade section');
 
       return {
@@ -162,7 +161,6 @@ export const getQueueWithStudents = async (req: Request, res: Response): Promise
         pickupPerson: {
           id: pickupPerson.id,
           name: pickupPerson.name,
-          email: pickupPerson.email,
         },
         students,
       };
