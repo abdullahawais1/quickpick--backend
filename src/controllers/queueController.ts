@@ -5,7 +5,7 @@ import PickupPerson from "../models/pickupPerson";
 import Student from "../models/student";
 import QueueEntry from "../models/queue";
 
-const SCHOOL_LOCATION = { latitude: 31.4782, longitude: 74.4939 };
+const SCHOOL_LOCATION = { latitude: 31.4782, longitude: 74.4938 };
 const MAX_DISTANCE_TO_SCHOOL_METERS = 50;
 const MIN_DISTANCE_TO_LAST_CAR_METERS = 0.5;
 const MAX_DISTANCE_TO_LAST_CAR_METERS = 10;
