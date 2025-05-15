@@ -137,15 +137,15 @@ export const getQueueWithStudents = asyncHandler(async (req: Request, res: Respo
   const queue = await QueueEntry.find().sort({ queueNumber: 1 });
 
   const detailedQueue = await Promise.all(queue.map(async (entry) => {
-    const pickupPerson = await PickupPerson.findById(entry.pickupPersonId);
+    const pickupPerson = await PickupPerson.findOne({ id: entry.pickupPersonId });
     if (!pickupPerson) return null;
 
-    const students = await Student.find({ pickup_person: pickupPerson._id }).select('id name grade section');
+    const students = await Student.find({ pickup_person: pickupPerson.id }).select('id name grade section');
 
     return {
       queueNumber: entry.queueNumber,
       pickupPerson: {
-        id: pickupPerson._id,
+        id: pickupPerson.id,
         name: pickupPerson.name,
         email: pickupPerson.email,
       },
