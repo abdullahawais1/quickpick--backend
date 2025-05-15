@@ -147,19 +147,25 @@ export const pickupComplete = async (req: Request, res: Response): Promise<void>
 };
 
 export const getQueueChildren = async (req: Request, res: Response): Promise<void> => {
-    const pickupPersonId = Number(req.params.pickupPersonId);
+    const pickupPersonIdRaw = req.params.pickupPersonId;
   
-    // Find PickupPerson first (optional, good for validation)
+    // Validate numeric id param
+    const pickupPersonId = Number(pickupPersonIdRaw);
+    if (isNaN(pickupPersonId)) {
+      res.status(400).json({ msg: "Invalid pickup person ID" });
+      return;
+    }
+  
+    // Now safe to query by number id
     const pickupPerson = await PickupPerson.findOne({ id: pickupPersonId });
     if (!pickupPerson) {
       res.status(404).json({ msg: "PickupPerson not found." });
       return;
     }
   
-    // Find students linked to this pickup person via their numeric id
     const children = await Student.find({ pickup_person: pickupPerson.id });
   
-    // Populate pickup_person details in each student
+    // Optionally populate pickup_person info in each child
     const populatedChildren = await Promise.all(
       children.map(async (student) => {
         const pickupPersons = await PickupPerson.find({ id: { $in: student.pickup_person } })
@@ -170,4 +176,4 @@ export const getQueueChildren = async (req: Request, res: Response): Promise<voi
   
     res.status(200).json(populatedChildren);
   };
-
+  
