@@ -51,7 +51,7 @@ export const autoJoinQueue = asyncHandler(async (req: Request, res: Response) =>
   const queue = await QueueEntry.find().sort({ queueNumber: 1 });
 
   if (queue.length === 0) {
-    const newEntry = new QueueEntry({ pickupPersonId: pickupPerson._id, queueNumber: 1 });
+    const newEntry = new QueueEntry({ pickupPersonId: pickupPerson.id, queueNumber: 1 });
     await newEntry.save();
     res.status(200).json({ message: "You have been added to the queue as first car.", queueNumber: 1 });
     return;
@@ -79,14 +79,14 @@ export const autoJoinQueue = asyncHandler(async (req: Request, res: Response) =>
   );
 
   if (distToLastCar >= MIN_DISTANCE_TO_LAST_CAR_METERS && distToLastCar <= MAX_DISTANCE_TO_LAST_CAR_METERS) {
-    const alreadyQueued = await QueueEntry.findOne({ pickupPersonId: pickupPerson._id });
+    const alreadyQueued = await QueueEntry.findOne({ pickupPersonId: pickupPerson.id });
     if (alreadyQueued) {
       res.status(400).json({ message: "You are already in the queue." });
       return;
     }
 
     const newRank = lastEntry.queueNumber + 1;
-    const newEntry = new QueueEntry({ pickupPersonId: pickupPerson._id, queueNumber: newRank });
+    const newEntry = new QueueEntry({ pickupPersonId: pickupPerson.id, queueNumber: newRank });
     await newEntry.save();
 
     res.status(200).json({ message: `You have been added to the queue with rank ${newRank}.`, queueNumber: newRank });
@@ -116,7 +116,7 @@ export const pickupComplete = asyncHandler(async (req: Request, res: Response) =
     return;
   }
 
-  const queueEntry = await QueueEntry.findOne({ pickupPersonId: pickupPerson._id });
+  const queueEntry = await QueueEntry.findOne({ pickupPersonId: pickupPerson.id });
   if (!queueEntry) {
     res.status(400).json({ message: "You are not in the queue." });
     return;
