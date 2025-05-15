@@ -8,7 +8,7 @@ import QueueEntry from "../models/queue";
 const SCHOOL_LOCATION = { latitude: 31.4782, longitude: 74.4938 };
 const MAX_DISTANCE_TO_SCHOOL_METERS = 50;
 const MIN_DISTANCE_TO_LAST_CAR_METERS = 0.5;
-const MAX_DISTANCE_TO_LAST_CAR_METERS = 2.5;
+const MAX_DISTANCE_TO_LAST_CAR_METERS = 10;
 
 function getDistanceMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const toRad = (x: number) => (x * Math.PI) / 180;
