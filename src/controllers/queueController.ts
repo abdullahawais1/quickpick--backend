@@ -29,6 +29,15 @@ export const autoJoinQueue = async (req: Request, res: Response): Promise<void> 
       res.status(401).json({ message: "Unauthorized: no user info" });
       return;
     }
+    if (
+      latitude === undefined ||
+      longitude === undefined ||
+      isNaN(latitude) ||
+      isNaN(longitude)
+    ) {
+      res.status(400).json({ message: "Invalid or missing latitude/longitude" });
+      return;
+    }
 
     const user = await appUser.findOne({ email: userEmail });
     if (!user) {
@@ -42,6 +51,7 @@ export const autoJoinQueue = async (req: Request, res: Response): Promise<void> 
       return;
     }
 
+    // Check distance to school
     const distToSchool = getDistanceMeters(
       latitude,
       longitude,
@@ -53,28 +63,43 @@ export const autoJoinQueue = async (req: Request, res: Response): Promise<void> 
       return;
     }
 
+    // Check if already in queue
+    const alreadyQueued = await QueueEntry.findOne({ pickupPersonId: pickupPerson.id });
+    if (alreadyQueued) {
+      res.status(400).json({ message: "You are already in the queue." });
+      return;
+    }
+
+    // Get current queue sorted by queueNumber ascending
     const queue = await QueueEntry.find().sort({ queueNumber: 1 });
 
     if (queue.length === 0) {
-      const newEntry = new QueueEntry({ pickupPersonId: pickupPerson.id, queueNumber: 1 });
+      // Queue empty, add as first car
+      const newEntry = new QueueEntry({
+        pickupPersonId: pickupPerson.id,
+        queueNumber: 1,
+      });
       await newEntry.save();
       res.status(200).json({ message: "You have been added to the queue as first car.", queueNumber: 1 });
       return;
     }
 
+    // Find last car in queue
     const lastEntry = queue[queue.length - 1];
-    const lastPickupPerson = await PickupPerson.findOne({ id: lastEntry.pickupPersonId }).select("id name");
+    const lastPickupPerson = await PickupPerson.findOne({ id: lastEntry.pickupPersonId }).select("id name email");
     if (!lastPickupPerson) {
       res.status(500).json({ message: "Last pickup person not found." });
       return;
     }
 
+    // Get last app user and their last known location
     const lastAppUser = await appUser.findOne({ email: lastPickupPerson.email });
     if (!lastAppUser || !lastAppUser.lastKnownLocation) {
       res.status(500).json({ message: "Last car's last known location not found." });
       return;
     }
 
+    // Calculate distance to last car
     const distToLastCar = getDistanceMeters(
       latitude,
       longitude,
@@ -82,22 +107,25 @@ export const autoJoinQueue = async (req: Request, res: Response): Promise<void> 
       lastAppUser.lastKnownLocation.longitude
     );
 
-    if (distToLastCar >= MIN_DISTANCE_TO_LAST_CAR_METERS && distToLastCar <= MAX_DISTANCE_TO_LAST_CAR_METERS) {
-      const alreadyQueued = await QueueEntry.findOne({ pickupPersonId: pickupPerson.id });
-      if (alreadyQueued) {
-        res.status(400).json({ message: "You are already in the queue." });
-        return;
-      }
-
-      const newRank = lastEntry.queueNumber + 1;
-      const newEntry = new QueueEntry({ pickupPersonId: pickupPerson.id, queueNumber: newRank });
-      await newEntry.save();
-
-      res.status(200).json({ message: `You have been added to the queue with rank ${newRank}.`, queueNumber: newRank });
+    // Check distance constraints to last car
+    if (distToLastCar < MIN_DISTANCE_TO_LAST_CAR_METERS) {
+      res.status(400).json({ message: `You are too close to the last car (${distToLastCar.toFixed(2)}m). Please move back.` });
+      return;
+    }
+    if (distToLastCar > MAX_DISTANCE_TO_LAST_CAR_METERS) {
+      res.status(400).json({ message: `You are too far from the last car (${distToLastCar.toFixed(2)}m). Move closer to join the queue.` });
       return;
     }
 
-    res.status(400).json({ message: "You are not close enough to the last car to auto join the queue." });
+    // Add new entry with next queue number
+    const newRank = lastEntry.queueNumber + 1;
+    const newEntry = new QueueEntry({
+      pickupPersonId: pickupPerson.id,
+      queueNumber: newRank,
+    });
+    await newEntry.save();
+
+    res.status(200).json({ message: `You have been added to the queue with rank ${newRank}.`, queueNumber: newRank });
   } catch (error) {
     console.error("Error in autoJoinQueue:", error);
     res.status(500).json({ message: "Internal server error." });
@@ -134,6 +162,7 @@ export const pickupComplete = async (req: Request, res: Response): Promise<void>
     const removedRank = queueEntry.queueNumber;
     await queueEntry.deleteOne();
 
+    // Decrement queueNumbers of entries with queueNumber greater than removed rank
     await QueueEntry.updateMany(
       { queueNumber: { $gt: removedRank } },
       { $inc: { queueNumber: -1 } }
@@ -147,24 +176,25 @@ export const pickupComplete = async (req: Request, res: Response): Promise<void>
 };
 
 export const getQueueChildren = async (req: Request, res: Response): Promise<void> => {
+  try {
     const pickupPersonIdRaw = req.params.pickupPersonId;
-  
+
     // Validate numeric id param
     const pickupPersonId = Number(pickupPersonIdRaw);
     if (isNaN(pickupPersonId)) {
       res.status(400).json({ msg: "Invalid pickup person ID" });
       return;
     }
-  
+
     // Now safe to query by number id
     const pickupPerson = await PickupPerson.findOne({ id: pickupPersonId });
     if (!pickupPerson) {
       res.status(404).json({ msg: "PickupPerson not found." });
       return;
     }
-  
+
     const children = await Student.find({ pickup_person: pickupPerson.id });
-  
+
     // Optionally populate pickup_person info in each child
     const populatedChildren = await Promise.all(
       children.map(async (student) => {
@@ -173,7 +203,10 @@ export const getQueueChildren = async (req: Request, res: Response): Promise<voi
         return { ...student.toObject(), pickup_person: pickupPersons };
       })
     );
-  
+
     res.status(200).json(populatedChildren);
-  };
-  
+  } catch (error) {
+    console.error("Error in getQueueChildren:", error);
+    res.status(500).json({ message: "Internal server error." });
+  }
+};
