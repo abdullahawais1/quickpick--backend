@@ -146,29 +146,28 @@ export const pickupComplete = async (req: Request, res: Response): Promise<void>
   }
 };
 
-export const getQueueWithStudents = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const queue = await QueueEntry.find().sort({ queueNumber: 1 });
+export const getQueueChildren = async (req: Request, res: Response): Promise<void> => {
+    const pickupPersonId = Number(req.params.pickupPersonId);
+  
+    // Find PickupPerson first (optional, good for validation)
+    const pickupPerson = await PickupPerson.findOne({ id: pickupPersonId });
+    if (!pickupPerson) {
+      res.status(404).json({ msg: "PickupPerson not found." });
+      return;
+    }
+  
+    // Find students linked to this pickup person via their numeric id
+    const children = await Student.find({ pickup_person: pickupPerson.id });
+  
+    // Populate pickup_person details in each student
+    const populatedChildren = await Promise.all(
+      children.map(async (student) => {
+        const pickupPersons = await PickupPerson.find({ id: { $in: student.pickup_person } })
+          .select("id name phone_number email");
+        return { ...student.toObject(), pickup_person: pickupPersons };
+      })
+    );
+  
+    res.status(200).json(populatedChildren);
+  };
 
-    const detailedQueue = await Promise.all(queue.map(async (entry) => {
-      const pickupPerson = await PickupPerson.findOne({ id: entry.pickupPersonId }).select("id name");
-      if (!pickupPerson) return null;
-
-      const students = await Student.find({ pickup_person: pickupPerson.id }).select('id name grade section');
-
-      return {
-        queueNumber: entry.queueNumber,
-        pickupPerson: {
-          id: pickupPerson.id,
-          name: pickupPerson.name,
-        },
-        students,
-      };
-    }));
-
-    res.status(200).json({ queue: detailedQueue.filter(Boolean) });
-  } catch (error) {
-    console.error("Error in getQueueWithStudents:", error);
-    res.status(500).json({ message: "Internal server error." });
-  }
-};

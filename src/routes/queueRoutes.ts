@@ -1,7 +1,7 @@
 import express, { Request, Response, NextFunction } from "express";
 import {
   autoJoinQueue,
-  getQueueWithStudents as getQueueList,
+  getQueueChildren as getQueueList,
   pickupComplete as markPickedUp,
 } from "../controllers/queueController";
 import authMiddleware from "../middleware/authMiddleware";
