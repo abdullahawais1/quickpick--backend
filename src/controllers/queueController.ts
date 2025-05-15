@@ -20,51 +20,54 @@ function getDistanceMeters(lat1: number, lon1: number, lat2: number, lon2: numbe
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-export const autoJoinQueue = async (req: Request, res: Response) => {
+export const autoJoinQueue = async (req: Request, res: Response): Promise<void> => {
   try {
     const { latitude, longitude } = req.body;
     const userEmail = req.user?.email;
 
     if (!userEmail) {
-      return res.status(401).json({ message: "Unauthorized: no user info" });
+      res.status(401).json({ message: "Unauthorized: no user info" });
+      return;
     }
 
     const user = await appUser.findOne({ email: userEmail });
     if (!user) {
-      return res.status(404).json({ message: "App user not found" });
+      res.status(404).json({ message: "App user not found" });
+      return;
     }
 
     const pickupPerson = await PickupPerson.findOne({ email: user.email });
     if (!pickupPerson) {
-      return res.status(404).json({ message: "Pickup person not found" });
-    }
-
-    if (latitude === undefined || longitude === undefined) {
-      return res.status(400).json({ message: "Latitude and longitude are required" });
+      res.status(404).json({ message: "Pickup person not found" });
+      return;
     }
 
     const distToSchool = getDistanceMeters(latitude, longitude, SCHOOL_LOCATION.latitude, SCHOOL_LOCATION.longitude);
     if (distToSchool > MAX_DISTANCE_TO_SCHOOL_METERS) {
-      return res.status(400).json({ message: "You must be within 50 meters of the school to join the queue" });
+      res.status(400).json({ message: "You must be within 50 meters of the school to join the queue" });
+      return;
     }
 
     const queue = await QueueEntry.find().sort({ queueNumber: 1 });
 
     if (queue.length === 0) {
-      const newEntry = new QueueEntry({ pickupPersonId: pickupPerson.id, queueNumber: 1 });
+      const newEntry = new QueueEntry({ pickupPersonId: pickupPerson._id, queueNumber: 1 });
       await newEntry.save();
-      return res.status(200).json({ message: "You have been added to the queue as first car.", queueNumber: 1 });
+      res.status(200).json({ message: "You have been added to the queue as first car.", queueNumber: 1 });
+      return;
     }
 
     const lastEntry = queue[queue.length - 1];
-    const lastPickupPerson = await PickupPerson.findOne({ id: lastEntry.pickupPersonId });
+    const lastPickupPerson = await PickupPerson.findById(lastEntry.pickupPersonId);
     if (!lastPickupPerson) {
-      return res.status(500).json({ message: "Last pickup person not found." });
+      res.status(500).json({ message: "Last pickup person not found." });
+      return;
     }
 
     const lastAppUser = await appUser.findOne({ email: lastPickupPerson.email });
     if (!lastAppUser || !lastAppUser.lastKnownLocation) {
-      return res.status(500).json({ message: "Last car's last known location not found." });
+      res.status(500).json({ message: "Last car's last known location not found." });
+      return;
     }
 
     const distToLastCar = getDistanceMeters(
@@ -75,46 +78,51 @@ export const autoJoinQueue = async (req: Request, res: Response) => {
     );
 
     if (distToLastCar >= MIN_DISTANCE_TO_LAST_CAR_METERS && distToLastCar <= MAX_DISTANCE_TO_LAST_CAR_METERS) {
-      const alreadyQueued = await QueueEntry.findOne({ pickupPersonId: pickupPerson.id });
+      const alreadyQueued = await QueueEntry.findOne({ pickupPersonId: pickupPerson._id });
       if (alreadyQueued) {
-        return res.status(400).json({ message: "You are already in the queue." });
+        res.status(400).json({ message: "You are already in the queue." });
+        return;
       }
 
       const newRank = lastEntry.queueNumber + 1;
-      const newEntry = new QueueEntry({ pickupPersonId: pickupPerson.id, queueNumber: newRank });
+      const newEntry = new QueueEntry({ pickupPersonId: pickupPerson._id, queueNumber: newRank });
       await newEntry.save();
 
-      return res.status(200).json({ message: `You have been added to the queue with rank ${newRank}.`, queueNumber: newRank });
+      res.status(200).json({ message: `You have been added to the queue with rank ${newRank}.`, queueNumber: newRank });
+      return;
     }
 
-    return res.status(400).json({ message: "You are not close enough to the last car to auto join the queue." });
+    res.status(400).json({ message: "You are not close enough to the last car to auto join the queue." });
   } catch (error) {
     console.error("autoJoinQueue error:", error);
-    return res.status(500).json({ message: "Internal server error" });
+    res.status(500).json({ message: "Internal server error" });
   }
 };
 
-export const pickupComplete = async (req: Request, res: Response) => {
+export const pickupComplete = async (req: Request, res: Response): Promise<void> => {
   try {
     const userEmail = req.user?.email;
-
     if (!userEmail) {
-      return res.status(401).json({ message: "Unauthorized: no user info" });
+      res.status(401).json({ message: "Unauthorized: no user info" });
+      return;
     }
 
     const user = await appUser.findOne({ email: userEmail });
     if (!user) {
-      return res.status(404).json({ message: "App user not found" });
+      res.status(404).json({ message: "App user not found" });
+      return;
     }
 
     const pickupPerson = await PickupPerson.findOne({ email: user.email });
     if (!pickupPerson) {
-      return res.status(404).json({ message: "Pickup person not found" });
+      res.status(404).json({ message: "Pickup person not found" });
+      return;
     }
 
-    const queueEntry = await QueueEntry.findOne({ pickupPersonId: pickupPerson.id });
+    const queueEntry = await QueueEntry.findOne({ pickupPersonId: pickupPerson._id });
     if (!queueEntry) {
-      return res.status(400).json({ message: "You are not in the queue." });
+      res.status(400).json({ message: "You are not in the queue." });
+      return;
     }
 
     const removedRank = queueEntry.queueNumber;
@@ -125,21 +133,24 @@ export const pickupComplete = async (req: Request, res: Response) => {
       { $inc: { queueNumber: -1 } }
     );
 
-    return res.status(200).json({ message: "Pickup complete, you have been removed from the queue." });
+    res.status(200).json({ message: "Pickup complete, you have been removed from the queue." });
   } catch (error) {
     console.error("pickupComplete error:", error);
-    return res.status(500).json({ message: "Internal server error" });
+    res.status(500).json({ message: "Internal server error" });
   }
 };
 
-export const getQueueWithStudents = async (req: Request, res: Response) => {
+export const getQueueWithStudents = async (req: Request, res: Response): Promise<void> => {
   try {
     const queue = await QueueEntry.find().sort({ queueNumber: 1 });
 
     const detailedQueue = await Promise.all(queue.map(async (entry) => {
-      const pickupPerson = await PickupPerson.findOne({ id: entry.pickupPersonId });
+      // use _id or the actual field for PickupPerson unique id
+      const pickupPerson = await PickupPerson.findById(entry.pickupPersonId);
       if (!pickupPerson) return null;
 
+      // students are linked by pickup_person which is unique number id (not Mongo _id)
+      // so query by pickup_person field matching pickupPerson.id (your unique number)
       const students = await Student.find({ pickup_person: pickupPerson.id }).select('id name grade section');
 
       return {
@@ -153,9 +164,9 @@ export const getQueueWithStudents = async (req: Request, res: Response) => {
       };
     }));
 
-    return res.status(200).json({ queue: detailedQueue.filter(Boolean) });
+    res.status(200).json({ queue: detailedQueue.filter(Boolean) });
   } catch (error) {
     console.error("getQueueWithStudents error:", error);
-    return res.status(500).json({ message: "Internal server error" });
+    res.status(500).json({ message: "Internal server error" });
   }
 };
