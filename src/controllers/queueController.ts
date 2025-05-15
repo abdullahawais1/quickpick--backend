@@ -58,7 +58,7 @@ export const autoJoinQueue = asyncHandler(async (req: Request, res: Response) =>
   }
 
   const lastEntry = queue[queue.length - 1];
-  const lastPickupPerson = await PickupPerson.findById(lastEntry.pickupPersonId);
+  const lastPickupPerson = await PickupPerson.findOne({ id: lastEntry.pickupPersonId });
   if (!lastPickupPerson) {
     res.status(500).json({ message: "Last pickup person not found." });
     return;
@@ -137,9 +137,11 @@ export const getQueueWithStudents = asyncHandler(async (req: Request, res: Respo
   const queue = await QueueEntry.find().sort({ queueNumber: 1 });
 
   const detailedQueue = await Promise.all(queue.map(async (entry) => {
+    // Find pickup person by numeric id
     const pickupPerson = await PickupPerson.findOne({ id: entry.pickupPersonId });
     if (!pickupPerson) return null;
 
+    // Find students where pickup_person array contains the pickupPerson's numeric id
     const students = await Student.find({ pickup_person: pickupPerson.id }).select('id name grade section');
 
     return {
