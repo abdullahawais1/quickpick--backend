@@ -1,3 +1,4 @@
+import http from "http";
 import express, { Application, Request, Response } from 'express';
 import connectDB from './config/db';
 import dotenv from 'dotenv';
@@ -5,7 +6,6 @@ import morgan from 'morgan';
 import helmet from 'helmet';
 import cors from 'cors';
 import errorHandler from './middleware/errorHandler';
-
 import vehicleRoutes from './routes/vehicle.routes';
 import authRoutes from './routes/auth.routes'; 
 import studentRoutes from './routes/student.routes';
@@ -16,12 +16,22 @@ import exceptionPickupRoutes from './routes/exceptionPickup.routes';
 import schoolRoutes from './routes/school.routes';
 import studentPickupPersonRoutes from './routes/studentPickupPerson.routes';
 import userAuthRoutes from './routes/appRoutes'; 
+import queueRoutes from './routes/queueRoutes';
+import { initializeSocketIO } from "./socket";
+import { Server } from "socket.io";
 
 // Load environment variables from .env file
 dotenv.config();
 
+
 // Initialize Express
 const app: Application = express();
+
+const server = http.createServer(app); // Create an HTTP server from Express app
+
+// Initialize Socket.IO events
+initializeSocketIO(server);
+
 
 app.use(express.json());
 app.use(morgan('dev'));
@@ -41,6 +51,7 @@ app.use('/pickup-schedules', pickupScheduleRoutes);
 app.use('/exception-pickups', exceptionPickupRoutes);
 app.use('/schools', schoolRoutes);
 app.use('/student-pickup-persons', studentPickupPersonRoutes);
+app.use('/api/queue', queueRoutes);
 
 // Root route
 app.get('/', (req: Request, res: Response) => {

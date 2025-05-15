@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import asyncHandler from "../utils/asyncHandler";
 import PickupPerson from "../models/pickupPerson";
 import Vehicle from "../models/vehicle"; // Assuming you have a Vehicle model
-import Student from "../models/student"; // Assuming you have a Student model
+import Student from "../models/student";
 
 // ✅ Clear the students array for a specific PickupPerson
 export const clearStudents = asyncHandler(async (req: Request, res: Response) => {
@@ -26,6 +26,7 @@ export const clearStudents = asyncHandler(async (req: Request, res: Response) =>
   // Return a success response
   res.status(200).json({ msg: "Students array cleared successfully.", pickupPerson });
 });
+
 
 export const getAllPickupPersons = asyncHandler(async (_req: Request, res: Response) => {
   // Find all pickup persons
@@ -51,7 +52,9 @@ export const getAllPickupPersons = asyncHandler(async (_req: Request, res: Respo
 
 
 
-// ✅ Get Pickup Person by ID (with Vehicle Details)
+
+
+// ✅ Get PickupPerson by ID (With Vehicle Details)
 export const getPickupPersonById = asyncHandler(async (req: Request, res: Response) => {
   const pickupPerson = await PickupPerson.findOne({ id: Number(req.params.id) });
 
@@ -65,7 +68,6 @@ export const getPickupPersonById = asyncHandler(async (req: Request, res: Respon
   res.status(200).json({ ...pickupPerson.toObject(), vehicle });
 });
 
-// ✅ Create a new PickupPerson
 export const createPickupPerson = asyncHandler(async (req: Request, res: Response) => {
   const { name, phone_number, email, cnic, vehicle_id } = req.body;
 
@@ -74,7 +76,6 @@ export const createPickupPerson = asyncHandler(async (req: Request, res: Respons
     return;
   }
 
-  // Ensure CNIC and vehicle_id (if provided) are numbers
   const cnicNumber = Number(cnic);
   const vehicleId = vehicle_id ? Number(vehicle_id) : undefined;
 
@@ -85,8 +86,8 @@ export const createPickupPerson = asyncHandler(async (req: Request, res: Respons
     return;
   }
 
-  // If vehicle_id is provided, check if the vehicle exists
-  if (vehicleId) {
+  // If vehicle_id is provided, check if it exists
+  if (vehicleId !== undefined) {
     const vehicleExists = await Vehicle.findOne({ id: vehicleId });
     if (!vehicleExists) {
       res.status(404).json({ msg: "Vehicle not found." });
@@ -111,31 +112,29 @@ export const createPickupPerson = asyncHandler(async (req: Request, res: Respons
   res.status(201).json({ msg: "PickupPerson created successfully", pickupPerson: newPickupPerson });
 });
 
-// ✅ Update PickupPerson by ID (Ensure Vehicle Exists)
+
 export const updatePickupPerson = asyncHandler(async (req: Request, res: Response) => {
   const { cnic, vehicle_id } = req.body;
 
-  // Ensure CNIC and vehicle_id (if provided) are numbers
   if (cnic !== undefined) {
     req.body.cnic = Number(cnic);
   }
+
   if (vehicle_id !== undefined) {
     req.body.vehicle_id = Number(vehicle_id);
-  }
 
-  // If vehicle_id is provided, check if the vehicle exists
-  if (vehicle_id !== undefined) {
-    const vehicleExists = await Vehicle.findOne({ id: vehicle_id });
+    const vehicleExists = await Vehicle.findOne({ id: req.body.vehicle_id });
     if (!vehicleExists) {
       res.status(404).json({ msg: "Vehicle not found." });
       return;
     }
   }
 
-  const updatedPickupPerson = await PickupPerson.findOneAndUpdate({ id: Number(req.params.id) }, req.body, {
-    new: true,
-    runValidators: true,
-  });
+  const updatedPickupPerson = await PickupPerson.findOneAndUpdate(
+    { id: Number(req.params.id) },
+    req.body,
+    { new: true, runValidators: true }
+  );
 
   if (!updatedPickupPerson) {
     res.status(404).json({ msg: "PickupPerson not found." });
@@ -149,6 +148,7 @@ export const updatePickupPerson = asyncHandler(async (req: Request, res: Respons
   res.status(200).json({ ...updatedPickupPerson.toObject(), vehicle });
 });
 
+
 // ✅ Delete PickupPerson by ID
 export const deletePickupPerson = asyncHandler(async (req: Request, res: Response) => {
   const deletedPickupPerson = await PickupPerson.findOneAndDelete({ id: Number(req.params.id) });
@@ -159,4 +159,4 @@ export const deletePickupPerson = asyncHandler(async (req: Request, res: Respons
   }
 
   res.status(200).json({ msg: "PickupPerson deleted successfully" });
-});
+}); 

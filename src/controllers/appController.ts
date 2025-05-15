@@ -4,6 +4,7 @@ import asyncHandler from '../utils/asyncHandler';
 import PickupPerson from '../models/pickupPerson';
 import appUser from '../models/appuser';
 import Student from '../models/student';
+import bcrypt from 'bcryptjs'; // Ensure bcryptjs is used
 
 const JWT_SECRET = process.env.JWT_SECRET || 'fallbackSecret';
 
@@ -25,8 +26,10 @@ export const signup = asyncHandler(async (req: Request, res: Response): Promise<
     return;
   }
 
-  // Let the model hash the password (don't hash here)
-  const newUser = new appUser({ name, email, phone_number, cnic, password });
+  // Let the model hash the password (bcryptjs will handle it)
+  const hashedPassword = await bcrypt.hash(password, 10); // Use bcryptjs here to hash the password
+
+  const newUser = new appUser({ name, email, phone_number, cnic, password: hashedPassword });
   await newUser.save();
 
   res.status(201).json({ message: 'User registered successfully' });
@@ -43,7 +46,9 @@ export const login = asyncHandler(async (req: Request, res: Response): Promise<v
     return;
   }
 
-  const isMatch = await user.comparePassword(password);
+  // Compare password using bcryptjs
+  const isMatch = await bcrypt.compare(password, user.password);
+
   if (!isMatch) {
     res.status(401).json({ message: 'Invalid email or password' });
     return;

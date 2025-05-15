@@ -13,15 +13,16 @@ export interface IPickupPerson extends Document {
 
 const PickupPersonSchema: Schema = new Schema(
   {
-    id: { type: Number, unique: true, required: true },
+    id: { type: Number, required: true, unique: true },
     name: { type: String, required: true },
     phone_number: { type: String, required: true },
     email: { type: String, required: true, unique: true },
     cnic: { type: Number, unique: true, required: true },
-    vehicle_id: { type: Number, ref: "Vehicle", required: true },
-    students: [{ type: Number, ref: "Student" }],
+    vehicle_id: { type: Number, ref: "Vehicle", required : false},
+    students: [{ type: Number, ref: "Student" }],  // Use custom 'id' reference here
   }
 );
+
 
 // Pre-save hook to set _id to the custom id
 PickupPersonSchema.pre("save", function (next) {

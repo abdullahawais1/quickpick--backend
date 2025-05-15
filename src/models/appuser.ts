@@ -7,6 +7,10 @@ export interface IappUser extends Document {
   phone_number: string;
   cnic: number;
   password: string;
+  lastKnownLocation?: {
+    latitude: number;
+    longitude: number;
+  };
   comparePassword(candidatePassword: string): Promise<boolean>;
 }
 
@@ -16,7 +20,13 @@ const appUserSchema: Schema = new Schema(
     email: { type: String, unique: true, required: true },
     phone_number: { type: String, required: true },
     cnic: { type: Number, unique: true, required: true },
-    password: { type: String, required: true, minlength: 6, select: false }, // <- important!
+    password: { type: String, required: true, minlength: 6, select: false },
+
+    // Add lastKnownLocation as a nested object with lat/lng
+    lastKnownLocation: {
+      latitude: { type: Number, required: false },
+      longitude: { type: Number, required: false },
+    },
   },
   { timestamps: true }
 );
