@@ -1,17 +1,13 @@
 import { Request, Response } from "express";
 import appUser from "../models/appuser";
 import PickupPerson from "../models/pickupPerson";
-import Student from "../models/student";
 import QueueEntry from "../models/queue";
+import { SCHOOL_LOCATION, QUEUE_CONFIG } from "../config/locations";
 
-const SCHOOL_LOCATION = { latitude: 31.4782, longitude: 74.4938 };
-const MAX_DISTANCE_TO_SCHOOL_METERS = 50;
-const MIN_DISTANCE_TO_LAST_CAR_METERS = 0.5;
-const MAX_DISTANCE_TO_LAST_CAR_METERS = 10;
-
+// Shared distance calculation function
 function getDistanceMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const toRad = (x: number) => (x * Math.PI) / 180;
-  const R = 6378137;
+  const R = 6378137; // Earth's radius in meters
   const dLat = toRad(lat2 - lat1);
   const dLon = toRad(lon2 - lon1);
   const a =
@@ -29,6 +25,7 @@ export const autoJoinQueue = async (req: Request, res: Response): Promise<void> 
       res.status(401).json({ message: "Unauthorized: no user info" });
       return;
     }
+
     if (
       latitude === undefined ||
       longitude === undefined ||
@@ -51,22 +48,31 @@ export const autoJoinQueue = async (req: Request, res: Response): Promise<void> 
       return;
     }
 
-    // Check distance to school
+    // Check distance to school using shared calculation
     const distToSchool = getDistanceMeters(
       latitude,
       longitude,
       SCHOOL_LOCATION.latitude,
       SCHOOL_LOCATION.longitude
     );
-    if (distToSchool > MAX_DISTANCE_TO_SCHOOL_METERS) {
-      res.status(400).json({ message: "You must be within 50 meters of the school to join the queue" });
-      return;
-    }
+
+    if (distToSchool > QUEUE_CONFIG.maxDistanceToSchoolMeters) {
+        res.status(400).json({ 
+          message: `You must be within ${QUEUE_CONFIG.maxDistanceToSchoolMeters} meters of the school to join the queue`,
+          distance: distToSchool,
+          maxDistance: QUEUE_CONFIG.maxDistanceToSchoolMeters
+        });
+        return;
+      }
+      
 
     // Check if already in queue
     const alreadyQueued = await QueueEntry.findOne({ pickupPersonId: pickupPerson.id });
     if (alreadyQueued) {
-      res.status(400).json({ message: "You are already in the queue." });
+      res.status(400).json({ 
+        message: "You are already in the queue.",
+        currentRank: alreadyQueued.queueNumber
+      });
       return;
     }
 
@@ -78,13 +84,19 @@ export const autoJoinQueue = async (req: Request, res: Response): Promise<void> 
       const newEntry = new QueueEntry({
         pickupPersonId: pickupPerson.id,
         queueNumber: 1,
+        joinedAt: new Date()
       });
       await newEntry.save();
-      res.status(200).json({ message: "You have been added to the queue as first car.", queueNumber: 1 });
+      
+      res.status(200).json({ 
+        message: "You have been added to the queue as first car.", 
+        queueNumber: 1,
+        distanceToSchool: distToSchool
+      });
       return;
     }
 
-    // Find last car in queue
+    // For non-empty queue, verify distance to last car
     const lastEntry = queue[queue.length - 1];
     const lastPickupPerson = await PickupPerson.findOne({ id: lastEntry.pickupPersonId }).select("id name email");
     if (!lastPickupPerson) {
@@ -108,12 +120,19 @@ export const autoJoinQueue = async (req: Request, res: Response): Promise<void> 
     );
 
     // Check distance constraints to last car
-    if (distToLastCar < MIN_DISTANCE_TO_LAST_CAR_METERS) {
-      res.status(400).json({ message: `You are too close to the last car (${distToLastCar.toFixed(2)}m). Please move back.` });
+    if (distToLastCar < QUEUE_CONFIG.minDistanceToLastCarMeters) {
+      res.status(400).json({ 
+        message: `You are too close to the last car (${distToLastCar.toFixed(2)}m). Please move back.`,
+        requiredMinDistance: QUEUE_CONFIG.minDistanceToLastCarMeters
+      });
       return;
     }
-    if (distToLastCar > MAX_DISTANCE_TO_LAST_CAR_METERS) {
-      res.status(400).json({ message: `You are too far from the last car (${distToLastCar.toFixed(2)}m). Move closer to join the queue.` });
+
+    if (distToLastCar > QUEUE_CONFIG.maxDistanceToLastCarMeters) {
+      res.status(400).json({ 
+        message: `You are too far from the last car (${distToLastCar.toFixed(2)}m). Move closer to join the queue.`,
+        requiredMaxDistance: QUEUE_CONFIG.maxDistanceToLastCarMeters
+      });
       return;
     }
 
@@ -122,10 +141,16 @@ export const autoJoinQueue = async (req: Request, res: Response): Promise<void> 
     const newEntry = new QueueEntry({
       pickupPersonId: pickupPerson.id,
       queueNumber: newRank,
+      joinedAt: new Date()
     });
     await newEntry.save();
 
-    res.status(200).json({ message: `You have been added to the queue with rank ${newRank}.`, queueNumber: newRank });
+    res.status(200).json({ 
+      message: `You have been added to the queue with rank ${newRank}.`,
+      queueNumber: newRank,
+      distanceToSchool: distToSchool,
+      distanceToLastCar: distToLastCar
+    });
   } catch (error) {
     console.error("Error in autoJoinQueue:", error);
     res.status(500).json({ message: "Internal server error." });
@@ -168,45 +193,92 @@ export const pickupComplete = async (req: Request, res: Response): Promise<void>
       { $inc: { queueNumber: -1 } }
     );
 
-    res.status(200).json({ message: "Pickup complete, you have been removed from the queue." });
+    res.status(200).json({ 
+      message: "Pickup complete, you have been removed from the queue.",
+      removedRank,
+      queueLength: await QueueEntry.countDocuments()
+    });
   } catch (error) {
     console.error("Error in pickupComplete:", error);
     res.status(500).json({ message: "Internal server error." });
   }
 };
 
-export const getQueueChildren = async (req: Request, res: Response): Promise<void> => {
+export const getQueueStatus = async (req: Request, res: Response): Promise<void> => {
   try {
-    const pickupPersonIdRaw = req.params.pickupPersonId;
+    // Get current queue sorted by queueNumber ascending
+    const queue = await QueueEntry.find()
+      .sort({ queueNumber: 1 })
+      .select("pickupPersonId queueNumber joinedAt")
+      .lean();
 
-    // Validate numeric id param
-    const pickupPersonId = Number(pickupPersonIdRaw);
-    if (isNaN(pickupPersonId)) {
-      res.status(400).json({ msg: "Invalid pickup person ID" });
-      return;
-    }
-
-    // Now safe to query by number id
-    const pickupPerson = await PickupPerson.findOne({ id: pickupPersonId });
-    if (!pickupPerson) {
-      res.status(404).json({ msg: "PickupPerson not found." });
-      return;
-    }
-
-    const children = await Student.find({ pickup_person: pickupPerson.id });
-
-    // Optionally populate pickup_person info in each child
-    const populatedChildren = await Promise.all(
-      children.map(async (student) => {
-        const pickupPersons = await PickupPerson.find({ id: { $in: student.pickup_person } })
-          .select("id name phone_number email");
-        return { ...student.toObject(), pickup_person: pickupPersons };
+    // Add additional pickup person info
+    const queueWithDetails = await Promise.all(
+      queue.map(async (entry) => {
+        const pickupPerson = await PickupPerson.findOne({ id: entry.pickupPersonId })
+          .select("name email")
+          .lean();
+        return {
+          ...entry,
+          pickupPerson
+        };
       })
     );
 
-    res.status(200).json(populatedChildren);
+    res.status(200).json({
+      schoolLocation: SCHOOL_LOCATION,
+      queue: queueWithDetails,
+      queueLength: queue.length,
+      maxDistanceToSchool: QUEUE_CONFIG.maxDistanceToSchoolMeters,
+      lastUpdated: new Date()
+    });
   } catch (error) {
-    console.error("Error in getQueueChildren:", error);
+    console.error("Error in getQueueStatus:", error);
     res.status(500).json({ message: "Internal server error." });
   }
 };
+
+export const getUserQueuePosition = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userEmail = req.user?.email;
+
+    if (!userEmail) {
+      res.status(401).json({ message: "Unauthorized: no user info" });
+      return;
+    }
+
+    const pickupPerson = await PickupPerson.findOne({ email: userEmail }).select("id");
+    if (!pickupPerson) {
+      res.status(404).json({ message: "Pickup person not found" });
+      return;
+    }
+
+    const queueEntry = await QueueEntry.findOne({ pickupPersonId: pickupPerson.id });
+    if (!queueEntry) {
+      res.status(200).json({ 
+        inQueue: false,
+        message: "You are not currently in the queue."
+      });
+      return;
+    }
+
+    const totalInQueue = await QueueEntry.countDocuments();
+    
+    res.status(200).json({
+      inQueue: true,
+      queueNumber: queueEntry.queueNumber,
+      totalInQueue,
+      estimatedWaitTime: calculateWaitTime(queueEntry.queueNumber), // Implement this based on your logic
+      joinedAt: queueEntry.joinedAt
+    });
+  } catch (error) {
+    console.error("Error in getUserQueuePosition:", error);
+    res.status(500).json({ message: "Internal server error." });
+  }
+};
+
+// Helper function to estimate wait time (customize based on your requirements)
+function calculateWaitTime(position: number): number {
+  // Example: 2 minutes per car ahead
+  return (position - 1) * 2;
+}
