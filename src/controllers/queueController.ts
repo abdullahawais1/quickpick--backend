@@ -25,7 +25,8 @@ export const autoJoinQueue = async (req: Request): Promise<{ message: string }> 
       throw new Error("App user not found");
     }
     
-    const pickupPerson = await PickupPerson.findOne({ email: user.email }).select("id name");
+    // Find the pickup person - ensure we're passing this as a string to match the database format
+    const pickupPerson = await PickupPerson.findOne({ email: userEmail }).select("id name");
     if (!pickupPerson) {
       throw new Error("Pickup person not found");
     }
@@ -72,23 +73,40 @@ export const getQueueRanks = async (
   try {
     // Get user info to determine if they're in the queue
     const userEmail = req.user?.email;
+    
+    // Enhanced logging for debugging
+    console.log("getQueueRanks called with user email:", userEmail);
+    
     if (!userEmail) {
       throw new Error("Unauthorized: no user info");
     }
     
+    // Find the user by email - it seems your authentication is working, so this must be finding the user
     const user = await appUser.findOne({ email: userEmail });
+    console.log("Found appUser:", user ? "yes" : "no");
+    
     if (!user) {
       throw new Error("App user not found");
     }
     
     // Fetch queue entries sorted by queue number
+    console.log("Fetching queue entries...");
     const entries = await QueueEntry.find().sort({ queueNumber: 1 });
+    console.log(`Found ${entries.length} queue entries`);
     
-    return entries.map((entry) => ({
-      pickupPersonId: entry.pickupPersonId,
-      queueNumber: entry.queueNumber,
-      location: liveLocations[entry.pickupPersonId] ?? null
-    }));
+    // Map the entries - this was the original source of the bug
+    // We need to ensure we're converting pickupPersonId to number consistently
+    const results = entries.map((entry) => {
+      const pickupPersonId = Number(entry.pickupPersonId);
+      return {
+        pickupPersonId,
+        queueNumber: entry.queueNumber,
+        location: liveLocations[pickupPersonId] ?? null
+      };
+    });
+    
+    console.log(`Returning ${results.length} queue entries with locations`);
+    return results;
   } catch (error) {
     console.error("Get queue ranks error:", error);
     throw error;
@@ -108,7 +126,7 @@ export const pickupComplete = async (req: Request): Promise<{ message: string }>
       throw new Error("App user not found");
     }
     
-    const pickupPerson = await PickupPerson.findOne({ email: user.email }).select("id");
+    const pickupPerson = await PickupPerson.findOne({ email: userEmail }).select("id");
     if (!pickupPerson) {
       throw new Error("Pickup person not found");
     }
@@ -155,7 +173,7 @@ export const getQueueChildren = async (req: Request): Promise<any[]> => {
       throw new Error("Pickup person not found");
     }
     
-    const children = await Student.find({ pickup_person: pickupPerson.id });
+    const children = await Student.find({ pickup_person: pickupPersonId });
     
     const populatedChildren = await Promise.all(
       children.map(async (student) => {
