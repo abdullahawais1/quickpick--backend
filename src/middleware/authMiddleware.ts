@@ -12,33 +12,36 @@ const authMiddleware = (
   res: Response,
   next: NextFunction
 ): void => {
-  let authHeader = req.headers['authorization'] || req.headers['Authorization'];
+  let authHeader = req.headers["authorization"] || req.headers["Authorization"];
+
+  console.log("Received Authorization header:", authHeader);
 
   if (Array.isArray(authHeader)) {
-    // If header is array, take the first element
     authHeader = authHeader[0];
   }
 
   if (!authHeader) {
-    res.status(401).json({ message: 'No token provided' });
+    console.log("No Authorization header provided");
+    res.status(401).json({ message: "No token provided" });
     return;
   }
 
-  const token = authHeader.split(' ')[1];  // now safe to split
-
+  const token = authHeader.split(" ")[1];
   if (!token) {
-    res.status(401).json({ message: 'No token provided' });
+    console.log("Authorization header does not contain token");
+    res.status(401).json({ message: "No token provided" });
     return;
   }
 
-  jwt.verify(token, JWT_SECRET, (err, decoded) => {
-    if (err) {
-      res.status(401).json({ message: 'Unauthorized' });
-      return;
-    }
-
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    console.log("JWT decoded successfully:", decoded);
     req.user = decoded;
     next();
-  });
+  } catch (error) {
+    console.error("JWT verification failed:", error);
+    res.status(401).json({ message: "Unauthorized" });
+  }
 };
+
 export default authMiddleware;
