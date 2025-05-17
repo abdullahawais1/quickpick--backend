@@ -1,33 +1,44 @@
-import { Request, Response, NextFunction } from 'express';
-import jwt from 'jsonwebtoken';
+import { Request, Response, NextFunction } from "express";
+import jwt from "jsonwebtoken";
 
 interface AuthRequest extends Request {
-  user?: any; // Optional user property to attach user info after decoding JWT
+  user?: any;
 }
 
-const JWT_SECRET = process.env.JWT_SECRET || 'fallbackSecret'; // Use the same secret
+const JWT_SECRET = process.env.JWT_SECRET || "fallbackSecret";
 
-const authMiddleware = (req: AuthRequest, res: Response, next: NextFunction): void => {
-  const token = req.headers['authorization']?.split(' ')[1];
+const authMiddleware = (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): void => {
+  let authHeader = req.headers['authorization'] || req.headers['Authorization'];
 
-  if (!token) {
-    // If no token is provided, send a 401 response and end the middleware chain.
-    res.status(401).json({ message: 'No token provided' });
-    return; // Ensure no further code is executed after the response is sent.
+  if (Array.isArray(authHeader)) {
+    // If header is array, take the first element
+    authHeader = authHeader[0];
   }
 
-  // Verify the token
-  jwt.verify(token, JWT_SECRET, (err, decoded) => {  // Use JWT_SECRET here
+  if (!authHeader) {
+    res.status(401).json({ message: 'No token provided' });
+    return;
+  }
+
+  const token = authHeader.split(' ')[1];  // now safe to split
+
+  if (!token) {
+    res.status(401).json({ message: 'No token provided' });
+    return;
+  }
+
+  jwt.verify(token, JWT_SECRET, (err, decoded) => {
     if (err) {
-      // If the token is invalid, send a 401 response.
       res.status(401).json({ message: 'Unauthorized' });
-      return; // Ensure no further code is executed after the response is sent.
+      return;
     }
 
-    // If the token is valid, attach the decoded user info to the request object.
     req.user = decoded;
-    next(); // Continue to the next middleware or route handler.
+    next();
   });
 };
-
 export default authMiddleware;

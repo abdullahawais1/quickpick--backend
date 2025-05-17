@@ -3,7 +3,6 @@ import {
   autoJoinQueue,
   getQueueRanks,
   pickupComplete,
-  getQueueChildren,
 } from "../controllers/queueController"; // Make sure file name matches exactly
 import authMiddleware from "../middleware/authMiddleware";
 
@@ -19,6 +18,6 @@ const asyncHandler = (
 router.post("/join", authMiddleware, asyncHandler(autoJoinQueue));         // Join queue
 router.get("/ranks", authMiddleware, asyncHandler(getQueueRanks));          // Get queue ranks
 router.post("/pickup", authMiddleware, asyncHandler(pickupComplete));       // Pickup complete
-router.get("/children/:pickupPersonId", authMiddleware, asyncHandler(getQueueChildren)); // Get children by pickupPersonId
+//router.get("/children/:pickupPersonId", authMiddleware, asyncHandler(getQueueChildren)); // Get children by pickupPersonId
 
 export default router;
