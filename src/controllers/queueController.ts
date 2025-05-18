@@ -88,12 +88,13 @@ export const getQueueRanks = async (
       console.log(`Found ${entries.length} queue entries`);
   
       const results = entries.map((entry) => {
-        const pickupPersonIdNum = Number(entry.pickupPersonId);
-        console.log(`Mapping entry: pickupPersonId=${pickupPersonIdNum}, queueNumber=${entry.queueNumber}`);
+        const rawId = entry.pickupPersonId;
+        const pickupPersonId = typeof rawId === "number" ? rawId : Number(rawId);
+        console.log(`Mapping entry: raw pickupPersonId=${rawId}, converted pickupPersonId=${pickupPersonId}, queueNumber=${entry.queueNumber}`);
         return {
-          pickupPersonId: pickupPersonIdNum,
+          pickupPersonId: pickupPersonId,
           queueNumber: entry.queueNumber,
-          location: liveLocations[pickupPersonIdNum] ?? null,
+          location: liveLocations[pickupPersonId] ?? null,
         };
       });
   
