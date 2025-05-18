@@ -55,6 +55,10 @@ app.get('/', (req: Request, res: Response) => {
 
 // Error handling middleware
 app.use(errorHandler);
+app.use((req, res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl}`);
+  next();
+});
 
 // ✅ Initialize Socket.IO AFTER all setup
 initializeSocketIO(server);
