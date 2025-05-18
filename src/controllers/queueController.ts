@@ -15,59 +15,61 @@ const liveLocations: {
 
 // Join Queue
 export const autoJoinQueue = async (req: AuthRequest): Promise<{ message: string }> => {
-  try {
-    const { latitude, longitude } = req.body;
-    const userEmail = req.user?.email;
-
-    console.log("autoJoinQueue user email:", userEmail);
-
-    if (!userEmail) {
-      throw new Error("Unauthorized: no user info");
+    console.log("autoJoinQueue user email:", req.user?.email);
+    try {
+      const { latitude, longitude } = req.body;
+      console.log("Received latitude:", latitude, "longitude:", longitude);
+  
+      const userEmail = req.user?.email;
+  
+      if (!userEmail) {
+        throw new Error("Unauthorized: no user info");
+      }
+  
+      const user = await appUser.findOne({ email: userEmail });
+      console.log("Found appUser:", user ? "yes" : "no");
+      if (!user) {
+        throw new Error("App user not found");
+      }
+  
+      const pickupPerson = await PickupPerson.findOne({ email: userEmail }).select("id name");
+      console.log("Found pickupPerson:", pickupPerson ? `yes (id=${pickupPerson.id})` : "no");
+      if (!pickupPerson) {
+        throw new Error("Pickup person not found");
+      }
+  
+      const alreadyQueued = await QueueEntry.findOne({ pickupPersonId: pickupPerson.id });
+      console.log("Already queued:", alreadyQueued ? "yes" : "no");
+      if (alreadyQueued) {
+        return { message: "You are already in the queue." };
+      }
+  
+      const queue = await QueueEntry.find().sort({ queueNumber: -1 }).limit(1);
+      console.log("Current highest queue number entry:", queue.length ? queue[0].queueNumber : "none");
+  
+      const newQueueNumber = queue.length > 0 ? queue[0].queueNumber + 1 : 1;
+  
+      const newEntry = new QueueEntry({
+        pickupPersonId: pickupPerson.id,
+        queueNumber: newQueueNumber,
+        joinedAt: new Date(),
+        pickedUp: false,
+      });
+  
+      await newEntry.save();
+      console.log("New queue entry saved:", newEntry);
+  
+      liveLocations[pickupPerson.id] = { latitude, longitude };
+  
+      io.emit("queueUpdated");
+  
+      return { message: `Successfully joined the queue at position ${newQueueNumber}` };
+    } catch (error) {
+      console.error("Join queue error:", error);
+      throw error;
     }
-
-    const user = await appUser.findOne({ email: userEmail });
-    if (!user) {
-      throw new Error("App user not found");
-    }
-
-    const pickupPerson = await PickupPerson.findOne({ email: userEmail }).select("id name");
-    if (!pickupPerson) {
-      throw new Error("Pickup person not found");
-    }
-
-    // Check if already in queue AND active (pickedUp: false)
-    const alreadyQueued = await QueueEntry.findOne({
-      pickupPersonId: pickupPerson.id,
-      pickedUp: false,
-    });
-    if (alreadyQueued) {
-      return { message: "You are already in the queue." };
-    }
-
-    // Get current highest queue number among active entries
-    const queue = await QueueEntry.find({ pickedUp: false }).sort({ queueNumber: -1 }).limit(1);
-    const newQueueNumber = queue.length > 0 ? queue[0].queueNumber + 1 : 1;
-
-    const newEntry = new QueueEntry({
-      pickupPersonId: pickupPerson.id,
-      queueNumber: newQueueNumber,
-      joinedAt: new Date(),
-      pickedUp: false,  // Make sure this field is set
-    });
-
-    await newEntry.save();
-    console.log("New queue entry saved:", newEntry);
-
-    liveLocations[pickupPerson.id] = { latitude, longitude };
-
-    io.emit("queueUpdated");
-
-    return { message: `Successfully joined the queue at position ${newQueueNumber}` };
-  } catch (error) {
-    console.error("Join queue error:", error);
-    throw error;
-  }
-};
+  };
+  
 
 // Get Queue Ranks (only active entries)
 export const getQueueRanks = async (
