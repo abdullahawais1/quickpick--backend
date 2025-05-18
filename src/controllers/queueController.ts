@@ -1,7 +1,6 @@
 import { Request } from "express";
 import appUser from "../models/appuser";
 import PickupPerson from "../models/pickupPerson";
-import Student from "../models/student";
 import QueueEntry from "../models/queue";
 import { io } from "../socket";
 
@@ -36,11 +35,16 @@ export const autoJoinQueue = async (req: AuthRequest): Promise<{ message: string
       throw new Error("Pickup person not found");
     }
 
-    const alreadyQueued = await QueueEntry.findOne({ pickupPersonId: pickupPerson.id, pickedUp: false });
+    // Check if already in queue AND active (pickedUp: false)
+    const alreadyQueued = await QueueEntry.findOne({
+      pickupPersonId: pickupPerson.id,
+      pickedUp: false,
+    });
     if (alreadyQueued) {
       return { message: "You are already in the queue." };
     }
 
+    // Get current highest queue number among active entries
     const queue = await QueueEntry.find({ pickedUp: false }).sort({ queueNumber: -1 }).limit(1);
     const newQueueNumber = queue.length > 0 ? queue[0].queueNumber + 1 : 1;
 
@@ -48,10 +52,11 @@ export const autoJoinQueue = async (req: AuthRequest): Promise<{ message: string
       pickupPersonId: pickupPerson.id,
       queueNumber: newQueueNumber,
       joinedAt: new Date(),
-      pickedUp: false,
+      pickedUp: false,  // Make sure this field is set
     });
 
     await newEntry.save();
+    console.log("New queue entry saved:", newEntry);
 
     liveLocations[pickupPerson.id] = { latitude, longitude };
 
@@ -64,7 +69,7 @@ export const autoJoinQueue = async (req: AuthRequest): Promise<{ message: string
   }
 };
 
-// Get Queue Ranks (only active, i.e. pickedUp: false)
+// Get Queue Ranks (only active entries)
 export const getQueueRanks = async (
   req: AuthRequest
 ): Promise<
@@ -84,7 +89,7 @@ export const getQueueRanks = async (
       throw new Error("App user not found");
     }
 
-    // Only fetch queue entries that are not picked up
+    // Fetch only active queue entries (pickedUp: false)
     const entries = await QueueEntry.find({ pickedUp: false }).sort({ queueNumber: 1 });
     console.log(`Found ${entries.length} active queue entries`);
 
@@ -107,7 +112,7 @@ export const getQueueRanks = async (
   }
 };
 
-// Pickup Complete - mark pickedUp true instead of deleting entry
+// Pickup Complete
 export const pickupComplete = async (req: AuthRequest): Promise<{ message: string }> => {
   try {
     const userEmail = req.user?.email;
@@ -125,19 +130,23 @@ export const pickupComplete = async (req: AuthRequest): Promise<{ message: strin
       throw new Error("Pickup person not found");
     }
 
-    const queueEntry = await QueueEntry.findOne({ pickupPersonId: pickupPerson.id, pickedUp: false });
+    const queueEntry = await QueueEntry.findOne({
+      pickupPersonId: pickupPerson.id,
+      pickedUp: false, // only active queue entries
+    });
     if (!queueEntry) {
       throw new Error("You are not in the queue.");
     }
 
     const removedRank = queueEntry.queueNumber;
-    // Mark as picked up
+
+    // Instead of deleting, mark as picked up (soft delete)
     queueEntry.pickedUp = true;
     await queueEntry.save();
 
     delete liveLocations[pickupPerson.id];
 
-    // Reorder queue numbers for remaining active queue entries
+    // Reorder queue numbers for everyone after this person
     await QueueEntry.updateMany(
       { queueNumber: { $gt: removedRank }, pickedUp: false },
       { $inc: { queueNumber: -1 } }
