@@ -36,12 +36,12 @@ export const autoJoinQueue = async (req: AuthRequest): Promise<{ message: string
       throw new Error("Pickup person not found");
     }
 
-    const alreadyQueued = await QueueEntry.findOne({ pickupPersonId: pickupPerson.id });
+    const alreadyQueued = await QueueEntry.findOne({ pickupPersonId: pickupPerson.id, pickedUp: false });
     if (alreadyQueued) {
       return { message: "You are already in the queue." };
     }
 
-    const queue = await QueueEntry.find().sort({ queueNumber: -1 }).limit(1);
+    const queue = await QueueEntry.find({ pickedUp: false }).sort({ queueNumber: -1 }).limit(1);
     const newQueueNumber = queue.length > 0 ? queue[0].queueNumber + 1 : 1;
 
     const newEntry = new QueueEntry({
@@ -64,51 +64,50 @@ export const autoJoinQueue = async (req: AuthRequest): Promise<{ message: string
   }
 };
 
-// Get Queue Ranks
+// Get Queue Ranks (only active, i.e. pickedUp: false)
 export const getQueueRanks = async (
-    req: AuthRequest
-  ): Promise<
-    { pickupPersonId: number; queueNumber: number; location: { latitude: number; longitude: number } | null }[]
-  > => {
-    try {
-      const userEmail = req.user?.email;
-      console.log("getQueueRanks called with user email:", userEmail);
-  
-      if (!userEmail) {
-        throw new Error("Unauthorized: no user info");
-      }
-  
-      const user = await appUser.findOne({ email: userEmail });
-      console.log("Found appUser:", user ? "yes" : "no");
-      if (!user) {
-        throw new Error("App user not found");
-      }
-  
-      const entries = await QueueEntry.find().sort({ queueNumber: 1 });
-      console.log(`Found ${entries.length} queue entries`);
-  
-      const results = entries.map((entry) => {
-        const rawId = entry.pickupPersonId;
-        const pickupPersonId = typeof rawId === "number" ? rawId : Number(rawId);
-        console.log(`Mapping entry: raw pickupPersonId=${rawId}, converted pickupPersonId=${pickupPersonId}, queueNumber=${entry.queueNumber}`);
-        return {
-          pickupPersonId: pickupPersonId,
-          queueNumber: entry.queueNumber,
-          location: liveLocations[pickupPersonId] ?? null,
-        };
-      });
-  
-      console.log(`Returning ${results.length} queue entries with locations`);
-      return results;
-    } catch (error) {
-      console.error("Get queue ranks error:", error);
-      throw error;
-    }
-  };
-  
-  
+  req: AuthRequest
+): Promise<
+  { pickupPersonId: number; queueNumber: number; location: { latitude: number; longitude: number } | null }[]
+> => {
+  try {
+    const userEmail = req.user?.email;
+    console.log("getQueueRanks called with user email:", userEmail);
 
-// Pickup Complete
+    if (!userEmail) {
+      throw new Error("Unauthorized: no user info");
+    }
+
+    const user = await appUser.findOne({ email: userEmail });
+    console.log("Found appUser:", user ? "yes" : "no");
+    if (!user) {
+      throw new Error("App user not found");
+    }
+
+    // Only fetch queue entries that are not picked up
+    const entries = await QueueEntry.find({ pickedUp: false }).sort({ queueNumber: 1 });
+    console.log(`Found ${entries.length} active queue entries`);
+
+    const results = entries.map((entry) => {
+      const rawId = entry.pickupPersonId;
+      const pickupPersonId = typeof rawId === "number" ? rawId : Number(rawId);
+      console.log(`Mapping entry: raw pickupPersonId=${rawId}, converted pickupPersonId=${pickupPersonId}, queueNumber=${entry.queueNumber}`);
+      return {
+        pickupPersonId: pickupPersonId,
+        queueNumber: entry.queueNumber,
+        location: liveLocations[pickupPersonId] ?? null,
+      };
+    });
+
+    console.log(`Returning ${results.length} active queue entries with locations`);
+    return results;
+  } catch (error) {
+    console.error("Get queue ranks error:", error);
+    throw error;
+  }
+};
+
+// Pickup Complete - mark pickedUp true instead of deleting entry
 export const pickupComplete = async (req: AuthRequest): Promise<{ message: string }> => {
   try {
     const userEmail = req.user?.email;
@@ -126,18 +125,21 @@ export const pickupComplete = async (req: AuthRequest): Promise<{ message: strin
       throw new Error("Pickup person not found");
     }
 
-    const queueEntry = await QueueEntry.findOne({ pickupPersonId: pickupPerson.id });
+    const queueEntry = await QueueEntry.findOne({ pickupPersonId: pickupPerson.id, pickedUp: false });
     if (!queueEntry) {
       throw new Error("You are not in the queue.");
     }
 
     const removedRank = queueEntry.queueNumber;
-    await queueEntry.deleteOne();
+    // Mark as picked up
+    queueEntry.pickedUp = true;
+    await queueEntry.save();
 
     delete liveLocations[pickupPerson.id];
 
+    // Reorder queue numbers for remaining active queue entries
     await QueueEntry.updateMany(
-      { queueNumber: { $gt: removedRank } },
+      { queueNumber: { $gt: removedRank }, pickedUp: false },
       { $inc: { queueNumber: -1 } }
     );
 
