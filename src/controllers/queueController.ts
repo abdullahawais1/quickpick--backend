@@ -98,49 +98,59 @@ export const getQueueRanks = async (req: Request, res: Response) => {
 
 // Pickup Complete
 export const pickupComplete = async (req: AuthRequest): Promise<{ message: string }> => {
-  try {
-    const userEmail = req.user?.email;
-    if (!userEmail) {
-      throw new Error("Unauthorized: no user info");
+    try {
+      const userEmail = req.user?.email;
+      if (!userEmail) {
+        throw new Error("Unauthorized: no user info");
+      }
+  
+      const user = await appUser.findOne({ email: userEmail });
+      if (!user) {
+        throw new Error("App user not found");
+      }
+  
+      const pickupPerson = await PickupPerson.findOne({ email: userEmail }).select("id");
+      if (!pickupPerson) {
+        throw new Error("Pickup person not found");
+      }
+  
+      // Find all queue entries for this pickupPersonId
+      const queueEntries = await QueueEntry.find({ pickupPersonId: pickupPerson.id }).sort({ joinedAt: 1 });
+  
+      if (!queueEntries.length) {
+        throw new Error("You are not in the queue.");
+      }
+  
+      // Delete all queue entries except the earliest one (oldest joinedAt)
+      const [earliestEntry, ...duplicates] = queueEntries;
+      
+      // Delete duplicates
+      const duplicateIds = duplicates.map(entry => entry._id);
+      if (duplicateIds.length > 0) {
+        await QueueEntry.deleteMany({ _id: { $in: duplicateIds } });
+        console.log(`Deleted ${duplicateIds.length} duplicate queue entries for pickupPersonId ${pickupPerson.id}`);
+      }
+  
+      // Now delete the earliest entry as the actual pickup completion
+      const removedRank = earliestEntry.queueNumber;
+      await earliestEntry.deleteOne();
+  
+      // Remove location from liveLocations memory store
+      delete liveLocations[pickupPerson.id];
+  
+      // Reorder queue numbers for entries after this person
+      await QueueEntry.updateMany(
+        { queueNumber: { $gt: removedRank } },
+        { $inc: { queueNumber: -1 } }
+      );
+  
+      // Notify clients
+      io.emit("queueUpdated");
+  
+      return { message: "Pickup completed successfully" };
+    } catch (error) {
+      console.error("Pickup complete error:", error);
+      throw error;
     }
-
-    const user = await appUser.findOne({ email: userEmail });
-    if (!user) {
-      throw new Error("App user not found");
-    }
-
-    const pickupPerson = await PickupPerson.findOne({ email: userEmail }).select("id");
-    if (!pickupPerson) {
-      throw new Error("Pickup person not found");
-    }
-
-    const queueEntry = await QueueEntry.findOne({
-      pickupPersonId: pickupPerson.id,
-      pickedUp: false, // only active queue entries
-    });
-    if (!queueEntry) {
-      throw new Error("You are not in the queue.");
-    }
-
-    const removedRank = queueEntry.queueNumber;
-
-    // Instead of deleting, mark as picked up (soft delete)
-    queueEntry.pickedUp = true;
-    await queueEntry.save();
-
-    delete liveLocations[pickupPerson.id];
-
-    // Reorder queue numbers for everyone after this person
-    await QueueEntry.updateMany(
-      { queueNumber: { $gt: removedRank }, pickedUp: false },
-      { $inc: { queueNumber: -1 } }
-    );
-
-    io.emit("queueUpdated");
-
-    return { message: "Pickup completed successfully" };
-  } catch (error) {
-    console.error("Pickup complete error:", error);
-    throw error;
-  }
-};
+  };
+  
