@@ -66,41 +66,46 @@ export const autoJoinQueue = async (req: AuthRequest): Promise<{ message: string
 
 // Get Queue Ranks
 export const getQueueRanks = async (
-  req: AuthRequest
-): Promise<
-  { pickupPersonId: number; queueNumber: number; location: { latitude: number; longitude: number } | null }[]
-> => {
-  try {
-    const userEmail = req.user?.email;
-
-    console.log("getQueueRanks called with user email:", userEmail);
-
-    if (!userEmail) {
-      throw new Error("Unauthorized: no user info");
+    req: AuthRequest
+  ): Promise<
+    { pickupPersonId: number; queueNumber: number; location: { latitude: number; longitude: number } | null }[]
+  > => {
+    try {
+      const userEmail = req.user?.email;
+      console.log("getQueueRanks called with user email:", userEmail);
+  
+      if (!userEmail) {
+        throw new Error("Unauthorized: no user info");
+      }
+  
+      const user = await appUser.findOne({ email: userEmail });
+      console.log("Found appUser:", user ? "yes" : "no");
+      if (!user) {
+        throw new Error("App user not found");
+      }
+  
+      const entries = await QueueEntry.find().sort({ queueNumber: 1 });
+      console.log(`Found ${entries.length} queue entries`);
+  
+      const results = entries.map((entry) => {
+        const pickupPersonIdNum = Number(entry.pickupPersonId);
+        console.log(`Mapping entry: pickupPersonId=${pickupPersonIdNum}, queueNumber=${entry.queueNumber}`);
+        return {
+          pickupPersonId: pickupPersonIdNum,
+          queueNumber: entry.queueNumber,
+          location: liveLocations[pickupPersonIdNum] ?? null,
+        };
+      });
+  
+      console.log(`Returning ${results.length} queue entries with locations`);
+      return results;
+    } catch (error) {
+      console.error("Get queue ranks error:", error);
+      throw error;
     }
-
-    const user = await appUser.findOne({ email: userEmail });
-    if (!user) {
-      throw new Error("App user not found");
-    }
-
-    const entries = await QueueEntry.find().sort({ queueNumber: 1 });
-
-    const results = entries.map((entry) => {
-      const pickupPersonId = Number(entry.pickupPersonId);
-      return {
-        pickupPersonId,
-        queueNumber: entry.queueNumber,
-        location: liveLocations[pickupPersonId] ?? null,
-      };
-    });
-
-    return results;
-  } catch (error) {
-    console.error("Get queue ranks error:", error);
-    throw error;
-  }
-};
+  };
+  
+  
 
 // Pickup Complete
 export const pickupComplete = async (req: AuthRequest): Promise<{ message: string }> => {
