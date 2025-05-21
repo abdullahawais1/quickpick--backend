@@ -114,42 +114,42 @@ export const pickupComplete = async (req: AuthRequest): Promise<{ message: strin
         throw new Error("Pickup person not found");
       }
   
-      // Find all queue entries for this pickupPersonId
+      // Find the earliest queue entry for this pickupPersonId
       const queueEntries = await QueueEntry.find({ pickupPersonId: pickupPerson.id }).sort({ joinedAt: 1 });
   
       if (!queueEntries.length) {
         throw new Error("You are not in the queue.");
       }
   
-      // Delete all queue entries except the earliest one (oldest joinedAt)
+      // Delete duplicates if any, keep only the earliest
       const [earliestEntry, ...duplicates] = queueEntries;
-      
-      // Delete duplicates
-      const duplicateIds = duplicates.map(entry => entry._id);
-      if (duplicateIds.length > 0) {
+      if (duplicates.length > 0) {
+        const duplicateIds = duplicates.map(entry => entry._id);
         await QueueEntry.deleteMany({ _id: { $in: duplicateIds } });
         console.log(`Deleted ${duplicateIds.length} duplicate queue entries for pickupPersonId ${pickupPerson.id}`);
       }
   
-      // Now delete the earliest entry as the actual pickup completion
+      // Store the removed queue number before deletion
       const removedRank = earliestEntry.queueNumber;
+  
+      // Remove this entry from queue (user leaving or pickup completed)
       await earliestEntry.deleteOne();
   
-      // Remove location from liveLocations memory store
+      // Remove live location if stored
       delete liveLocations[pickupPerson.id];
   
-      // Reorder queue numbers for entries after this person
+      // Decrement queue numbers of everyone behind the removed entry
       await QueueEntry.updateMany(
         { queueNumber: { $gt: removedRank } },
         { $inc: { queueNumber: -1 } }
       );
   
-      // Notify clients
+      // Notify all clients to update queue display
       io.emit("queueUpdated");
   
-      return { message: "Pickup completed successfully" };
+      return { message: "You have successfully left the queue" };
     } catch (error) {
-      console.error("Pickup complete error:", error);
+      console.error("Pickup complete / leave queue error:", error);
       throw error;
     }
   };
