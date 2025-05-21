@@ -3,6 +3,7 @@ import appUser from "../models/appuser";
 import PickupPerson from "../models/pickupPerson";
 import QueueEntry from "../models/queue";
 import { io } from "../socket";
+import { getPickupPersonById } from "./pickupPerson.controller";
 
 interface AuthRequest extends Request {
   user?: any;
@@ -59,7 +60,7 @@ export const autoJoinQueue = async (
   
       io.emit("queueUpdated");
   
-      return res.status(201).json({ message: `Successfully joined the queue at position ${newQueueNumber}` });
+      return res.status(201).json({ message: `Successfully joined the queue at position ${newQueueNumber}`, pickupPersonById: pickupPerson.id.toString()});
     } catch (error) {
       console.error("Join queue error:", error);
       next(error);
