@@ -17,7 +17,21 @@ const asyncHandler = (
 // Protected routes (require authentication)
 router.post("/join", authMiddleware, asyncHandler(autoJoinQueue));         // Join queue
 router.get("/ranks", authMiddleware, asyncHandler(getQueueRanks));          // Get queue ranks
-router.post("/pickup", authMiddleware, asyncHandler(pickupComplete));       // Pickup complete
-//router.get("/children/:pickupPersonId", authMiddleware, asyncHandler(getQueueChildren)); // Get children by pickupPersonId
+router.post('/pickup', authMiddleware, async (req, res) => {
+    try {
+      const result = await pickupComplete(req);
+      res.json(result);
+    } catch (error: unknown) {
+      console.error("Error in /pickup route:", error);
+  
+      if (error instanceof Error) {
+        res.status(500).json({ message: error.message });
+      } else {
+        // fallback if error is not an Error object
+        res.status(500).json({ message: "Internal Server Error" });
+      }
+    }
+  });
+  //router.get("/children/:pickupPersonId", authMiddleware, asyncHandler(getQueueChildren)); // Get children by pickupPersonId
 
 export default router;
