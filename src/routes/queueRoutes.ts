@@ -2,36 +2,23 @@ import express, { Request, Response, NextFunction } from "express";
 import {
   autoJoinQueue,
   getQueueRanks,
-  pickupComplete,
-} from "../controllers/queueController"; // Make sure file name matches exactly
+  pickupCompleteHandler,  // <-- updated import to Express handler
+} from "../controllers/queueController"; // Ensure file and export names match
 import authMiddleware from "../middleware/authMiddleware";
 
 const router = express.Router();
 
-// Async handler wrapper to catch errors
 const asyncHandler = (
   fn: (req: Request, res: Response, next: NextFunction) => Promise<any>
 ) => (req: Request, res: Response, next: NextFunction) =>
   Promise.resolve(fn(req, res, next)).catch(next);
 
-// Protected routes (require authentication)
-router.post("/join", authMiddleware, asyncHandler(autoJoinQueue));         // Join queue
-router.get("/ranks", authMiddleware, asyncHandler(getQueueRanks));          // Get queue ranks
-router.post('/pickup', authMiddleware, async (req, res) => {
-    try {
-      const result = await pickupComplete(req);
-      res.json(result);
-    } catch (error: unknown) {
-      console.error("Error in /pickup route:", error);
-  
-      if (error instanceof Error) {
-        res.status(500).json({ message: error.message });
-      } else {
-        // fallback if error is not an Error object
-        res.status(500).json({ message: "Internal Server Error" });
-      }
-    }
-  });
-  //router.get("/children/:pickupPersonId", authMiddleware, asyncHandler(getQueueChildren)); // Get children by pickupPersonId
+// Protected routes
+router.post("/join", authMiddleware, asyncHandler(autoJoinQueue));
+router.get("/ranks", authMiddleware, asyncHandler(getQueueRanks));
+router.post("/pickup", authMiddleware, asyncHandler(pickupCompleteHandler));
+
+// Optional commented out route
+// router.get("/children/:pickupPersonId", authMiddleware, asyncHandler(getQueueChildren));
 
 export default router;
