@@ -67,7 +67,7 @@ export const autoJoinQueue = async (
       io.emit("queueUpdated");
 
       return res.status(201).json({
-        message: Successfully joined the queue at position ${newQueueNumber},
+        message: `Successfully joined the queue at position ${newQueueNumber}`,
         pickupPersonId: pickupPerson.id,
         queueNumber: newQueueNumber,
       });
@@ -105,7 +105,7 @@ export const getQueueRanks = async (req: AuthRequest, res: Response) => {
       location: liveLocations[entry.pickupPersonId] || null,
     }));
 
-    console.log(Returning ${results.length} queue entries with locations);
+    console.log(`Returning ${results.length} queue entries with locations`);
     return res.json(results);
   } catch (error) {
     console.error("Get queue ranks error:", error);
@@ -146,7 +146,7 @@ export const pickupCompleteHandler = async (
     if (duplicates.length > 0) {
       const duplicateIds = duplicates.map((entry) => entry._id);
       await QueueEntry.deleteMany({ _id: { $in: duplicateIds } });
-      console.log(Deleted ${duplicateIds.length} duplicate queue entries for pickupPersonId ${pickupPerson.id});
+      console.log(`Deleted ${duplicateIds.length} duplicate queue entries for pickupPersonId ${pickupPerson.id}`);
     }
 
     const removedRank = earliestEntry.queueNumber;
