@@ -61,8 +61,6 @@ export const autoJoinQueue = async (
       await session.commitTransaction();
       session.endSession();
 
-      // Optionally save live location if desired:
-      // liveLocations[pickupPerson.id] = { latitude, longitude };
 
       io.emit("queueUpdated");
 

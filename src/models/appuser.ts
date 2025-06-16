@@ -20,9 +20,8 @@ const appUserSchema: Schema = new Schema(
     email: { type: String, unique: true, required: true },
     phone_number: { type: String, required: true },
     cnic: { type: Number, unique: true, required: true },
-    password: { type: String, required: true, minlength: 6, select: false },
+    password: { type: String, required: true, minlength: 6, select: true },
 
-    // Add lastKnownLocation as a nested object with lat/lng
     lastKnownLocation: {
       latitude: { type: Number, required: false },
       longitude: { type: Number, required: false },
@@ -31,19 +30,29 @@ const appUserSchema: Schema = new Schema(
   { timestamps: true }
 );
 
-// Hash password before saving
+// In your appUser model file
 appUserSchema.pre<IappUser>("save", async function (next) {
+  // Only hash if password was modified (or is new)
   if (!this.isModified("password")) return next();
-  const salt = await bcrypt.genSalt(10);
-  this.password = await bcrypt.hash(this.password, salt);
-  next();
+
+  try {
+    // Hash the password with auto-generated salt
+    this.password = await bcrypt.hash(this.password, 10);
+    next();
+  } catch (error) {
+    next(error as Error);
+  }
 });
 
-// Compare password method
+// Improved comparePassword method
 appUserSchema.methods.comparePassword = async function (
   candidatePassword: string
 ): Promise<boolean> {
-  return bcrypt.compare(candidatePassword, this.password);
+  // Trim both passwords for comparison
+  const trimmedCandidate = candidatePassword.trim();
+  const trimmedStored = this.password.trim();
+  
+  return bcrypt.compare(trimmedCandidate, trimmedStored);
 };
 
 export default mongoose.model<IappUser>("appUser", appUserSchema);

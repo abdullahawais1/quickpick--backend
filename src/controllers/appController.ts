@@ -8,60 +8,97 @@ import bcrypt from 'bcryptjs'; // Ensure bcryptjs is used
 
 const JWT_SECRET = process.env.JWT_SECRET || 'fallbackSecret';
 
-// ✅ Signup Controller
+// Signup Controller
 export const signup = asyncHandler(async (req: Request, res: Response): Promise<void> => {
   const { name, email, phone_number, cnic, password } = req.body;
 
-  const existingUser = await appUser.findOne({ email, cnic, phone_number });
+  // Trim inputs
+  const trimmedEmail = email.trim();
+  const trimmedPassword = password.trim();
 
-  if (existingUser) {
-    res.status(400).json({ message: 'User already exists' });
-    return;
-  }
-
-  const pickupPerson = await PickupPerson.findOne({ email, cnic, phone_number });
-
-  if (!pickupPerson) {
-    res.status(404).json({ message: 'Pickup person not found' });
-    return;
-  }
-
-  // Let the model hash the password (bcryptjs will handle it)
-  const hashedPassword = await bcrypt.hash(password, 10); // Use bcryptjs here to hash the password
-
-  const newUser = new appUser({ name, email, phone_number, cnic, password: hashedPassword });
-  await newUser.save();
-
-  res.status(201).json({ message: 'User registered successfully' });
-});
-
-// ✅ Login Controller
-export const login = asyncHandler(async (req: Request, res: Response): Promise<void> => {
-  const { email, password } = req.body;
-
-  const user = await appUser.findOne({ email }).select('+password');
-
-  if (!user) {
-    res.status(401).json({ message: 'Invalid email or password' });
-    return;
-  }
-
-  // Compare password using bcryptjs
-  const isMatch = await bcrypt.compare(password, user.password);
-
-  if (!isMatch) {
-    res.status(401).json({ message: 'Invalid email or password' });
-    return;
-  }
-
-  const token = jwt.sign({ userId: user._id, email: user.email }, JWT_SECRET, {
-    expiresIn: '7d',
+  const existingUser = await appUser.findOne({ 
+    $or: [
+      { email: trimmedEmail },
+      { cnic },
+      { phone_number }
+    ]
   });
 
-  res.json({ token });
+  if (existingUser) {
+    res.status(400).json({ message: "User already exists" });
+    return;
+  }
+
+  const pickupPerson = await PickupPerson.findOne({ 
+    email: trimmedEmail, 
+    cnic, 
+    phone_number 
+  });
+
+  if (!pickupPerson) {
+    res.status(404).json({ message: "Pickup person not found" });
+    return;
+  }
+
+  // Create user with plain password - model will hash it
+  const newUser = new appUser({ 
+    name, 
+    email: trimmedEmail, 
+    phone_number, 
+    cnic, 
+    password: trimmedPassword 
+  });
+
+  await newUser.save();
+
+  res.status(201).json({ message: "User registered successfully" });
 });
 
-// ✅ Get Children of the Logged-in User
+
+// Login Controller with the comparePassword method
+export const login = asyncHandler(async (req: Request, res: Response): Promise<void> => {
+  const { email: rawEmail, password: rawPassword } = req.body;
+  
+  // Trim inputs
+  const email = rawEmail.trim();
+  const password = rawPassword.trim();
+
+  if (!email || !password) {
+    res.status(400).json({ message: "Email and password are required" });
+    return;
+  }
+
+  const user = await appUser.findOne({ email }).select("+password");
+
+  if (!user) {
+    res.status(401).json({ message: "Invalid credentials" }); // Generic message for security
+    return;
+  }
+
+  const isMatch = await user.comparePassword(password);
+
+  if (!isMatch) {
+    res.status(401).json({ message: "Invalid credentials" }); // Generic message
+    return;
+  }
+
+  const token = jwt.sign(
+    { userId: user._id, email: user.email }, 
+    JWT_SECRET, 
+    { expiresIn: "7d" }
+  );
+
+  // Omit sensitive data from response
+  const userData = {
+    id: user._id,
+    name: user.name,
+    email: user.email
+  };
+
+  res.json({ token, user: userData });
+});
+
+// Get Children of the Logged-in User
 export const getChildren = asyncHandler(async (req: Request, res: Response): Promise<void> => {
   const user = req.user; // Comes from JWT middleware
 

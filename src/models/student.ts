@@ -22,7 +22,7 @@ const StudentSchema: Schema = new Schema(
 // Pre-save hook to set _id to the custom id
 StudentSchema.pre("save", function (next) {
   if (this.isNew) {
-    this._id = this.id; // Set _id to the custom id
+    this._id = this.id; // Set _id to the custom id i.e unique id
   }
   next();
 });
@@ -36,4 +36,4 @@ StudentSchema.set("toJSON", {
   },
 });
 
-export default mongoose.model<IStudent>("Student", StudentSchema);
+export default mongoose.model<IStudent>("Student", StudentSchema); 

@@ -3,7 +3,7 @@ import asyncHandler from "../utils/asyncHandler";
 import Student from "../models/student";
 import PickupPerson from "../models/pickupPerson";
 
-// ✅ Add a pickup person to an existing student and simultaneously add the student to the PickupPerson's students array
+// Add a pickup person to an existing student and simultaneously add the student to the PickupPerson's students array
 export const addPickupPersonToStudent = asyncHandler(async (req: Request, res: Response): Promise<void> => {
   const studentId = Number(req.params.id);
   const newPickupPersonId = Number(req.body.pickup_person_id);
@@ -47,7 +47,7 @@ export const addPickupPersonToStudent = asyncHandler(async (req: Request, res: R
   });
 });
 
-// ✅ Get all students (With PickupPerson Details)
+// Get all students (With PickupPerson Details)
 export const getAllStudents = asyncHandler(async (req: Request, res: Response): Promise<void> => {
   const students = await Student.find();
 
@@ -62,7 +62,7 @@ export const getAllStudents = asyncHandler(async (req: Request, res: Response): 
   res.status(200).json(populatedStudents);
 });
 
-// ✅ Get student by unique numeric ID (With PickupPerson Details)
+// Get student by unique numeric ID (With PickupPerson Details)
 export const getStudentById = asyncHandler(async (req: Request, res: Response): Promise<void> => {
   const student = await Student.findOne({ id: Number(req.params.id) });
 
@@ -77,7 +77,7 @@ export const getStudentById = asyncHandler(async (req: Request, res: Response): 
   res.status(200).json({ ...student.toObject(), pickup_person: pickupPersons });
 });
 
-// ✅ Get students by Grade & Section (With PickupPerson Details)
+// Get students by Grade & Section (With PickupPerson Details)
 export const getStudentsByGradeSection = asyncHandler(async (req: Request, res: Response): Promise<void> => {
   const { grade, section } = req.query;
 
@@ -104,7 +104,7 @@ export const getStudentsByGradeSection = asyncHandler(async (req: Request, res: 
   res.status(200).json(populatedStudents);
 });
 
-// ✅ Create a new Student and simultaneously update PickupPerson's students array
+// Create a new Student and simultaneously update PickupPerson's students array
 export const createStudent = asyncHandler(async (req: Request, res: Response): Promise<void> => {
   const { name, grade, section, pickup_person } = req.body;
 
@@ -155,7 +155,7 @@ export const createStudent = asyncHandler(async (req: Request, res: Response): P
 });
 
 
-// ✅ Update student
+// Update student
 export const updateStudent = asyncHandler(async (req: Request, res: Response): Promise<void> => {
   const updateData = req.body;
 
@@ -188,7 +188,7 @@ export const updateStudent = asyncHandler(async (req: Request, res: Response): P
   res.status(200).json({ ...updatedStudent.toObject(), pickup_person: pickupPersons });
 });
 
-// ✅ Delete student
+// Delete student
 export const deleteStudent = asyncHandler(async (req: Request, res: Response): Promise<void> => {
   const deleted = await Student.findOneAndDelete({ id: Number(req.params.id) });
 
@@ -200,7 +200,7 @@ export const deleteStudent = asyncHandler(async (req: Request, res: Response): P
   res.status(200).json({ msg: "Student deleted successfully." });
 });
 
-// ✅ Get children of a PickupPerson
+// Get children of a PickupPerson
 export const getPickupPersonChildren = asyncHandler(async (req: Request, res: Response): Promise<void> => {
   const userId = Number(req.params.userId);  // assuming you pass userId in URL params
   
