@@ -5,13 +5,14 @@ import {
   getPickupPersonById,
   updatePickupPerson,
   deletePickupPerson,
-  clearStudents
+  clearStudents,
 } from '../controllers/pickupPerson.controller';
 import authMiddleware from '../middleware/authMiddleware';
 
 const router = express.Router();
 
 router.patch("/:id/clear-students", clearStudents);
+
 router.get('/', authMiddleware, getAllPickupPersons);
 router.post('/', authMiddleware, createPickupPerson);
 router.get('/:id', authMiddleware, getPickupPersonById);

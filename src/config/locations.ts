@@ -5,7 +5,5 @@ export const SCHOOL_LOCATION = {
   };
   
   export const QUEUE_CONFIG = {
-    maxDistanceToSchoolMeters: 50,
-    minDistanceToLastCarMeters: 0.5,
-    maxDistanceToLastCarMeters: 10,
+    maxDistanceToSchoolMeters: 50
   };
