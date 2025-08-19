@@ -2,27 +2,28 @@ name: CD Pipeline
 
 on:
   workflow_run:
-    workflows: ["CI Pipeline"]   # must exactly match name in ci.yml
+    workflows: ["CI Pipeline"]   # must match ci.yml 'name'
     types:
       - completed
 
 jobs:
   deploy:
-    runs-on: self-hosted   # 👈 requirement: self-hosted runner
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}  # only if CI passed
+    runs-on: self-hosted
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
 
     steps:
-      - name: Download build artifact
+      - name: Download CI artifact
         uses: actions/download-artifact@v4
         with:
           name: backend-build
+          run-id: ${{ github.event.workflow_run.id }}   
+          github-token: ${{ secrets.GITHUB_TOKEN }}     
           path: ./backend-build
 
       - name: Set environment variables
         run: |
           echo "PORT=4000" >> $GITHUB_ENV
           echo "NODE_ENV=production" >> $GITHUB_ENV
-          echo "DB_URL=mongodb://localhost:27017/mydb" >> $GITHUB_ENV
 
       - name: Install dependencies
         run: npm install --production
@@ -30,6 +31,5 @@ jobs:
 
       - name: Start application
         run: |
-          echo "Starting backend..."
           nohup node dist/index.js > app.log 2>&1 &
         working-directory: ./backend-build
