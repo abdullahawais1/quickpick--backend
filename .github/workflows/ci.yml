@@ -30,7 +30,7 @@ jobs:
       - name: Build project
         run: npm run build
 
-      - name: Upload production build
+      - name: Upload backend build
         uses: actions/upload-artifact@v4
         with:
           name: backend-build
