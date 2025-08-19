@@ -1,0 +1,42 @@
+name: CD Pipeline
+
+on:
+  workflow_run:
+    workflows: ["CI Pipeline"]   # Run only after CI pipeline succeeds
+    types:
+      - completed
+
+jobs:
+  deploy:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: self-hosted 
+
+    steps:
+      # 1. Checkout repo
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # 2. Download artifact from CI
+      - name: Download backend build
+        uses: actions/download-artifact@v4
+        with:
+          name: backend-build
+          path: ./app
+
+      # 3. Install production dependencies
+      - name: Install production dependencies
+        run: |
+          cd app
+          npm install --production
+
+      # 4. Set environment variables
+      - name: Set environment variables
+        run: |
+          echo "PORT=4000" >> $GITHUB_ENV
+          echo "DB_URL=mongodb://localhost:27017/quickpick" >> $GITHUB_ENV
+
+      # 5. Run the backend
+      - name: Start application
+        run: |
+          cd app
+          npm start
