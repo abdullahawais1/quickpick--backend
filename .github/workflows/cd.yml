@@ -16,20 +16,20 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: backend-build
-          run-id: ${{ github.event.workflow_run.id }}   
-          github-token: ${{ secrets.GITHUB_TOKEN }}     
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           path: ./backend-build
 
       - name: Set environment variables
         run: |
-          echo "PORT=4000" >> $GITHUB_ENV
-          echo "NODE_ENV=production" >> $GITHUB_ENV
+          echo "PORT=4000" >> $env:GITHUB_ENV
+          echo "NODE_ENV=production" >> $env:GITHUB_ENV
 
       - name: Install dependencies
         run: npm install --production
         working-directory: ./backend-build
 
-      - name: Start application
+      - name: Start application in background
         run: |
-          nohup node dist/index.js > app.log 2>&1 &
-        working-directory: ./backend-build
+          cd backend-build
+          Start-Process "node" "dist/index.js" -WindowStyle Hidden
